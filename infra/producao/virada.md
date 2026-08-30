@@ -100,3 +100,28 @@ Verificado depois da correcao, por conteudo:
     /images/items/100.png      200  (1078 bytes) — 32.872 PNGs no lugar
 
 Zero erros ou avisos de PHP em todas.
+
+## Segunda armadilha do site: o `site_url`
+
+Depois de o index.html do Debian sair do caminho, o site abriu — mas sem estilo
+e sem imagem nenhuma, so texto.
+
+A causa: `config.local.php` traz
+
+    $config['site_url'] = 'http://100.91.91.40';
+
+e o MyAAC monta URL ABSOLUTA a partir disso para links e imagens. Todos
+apontavam para a bancada, que acabara de sair do ar. O CSS do template usa
+caminho relativo e carregava, mas sem as imagens de borda o tema Tibia desmonta
+e a pagina fica com cara de HTML cru.
+
+Corrigido para http://100.118.32.106 (copia anterior em
+config.local.php.antes-da-301) e o cache do MyAAC limpo.
+
+**Quando o dinizismo.com.br entrar no ar, esta linha muda de novo** — e ai passa
+a ser um nome de verdade em vez de um IP da Tailscale. O `url` do config.lua do
+servidor (hoje "http://floripaot.com/", dominio que nao e do Matheus) tambem.
+
+Licao: procurar por endereco antigo em TODA a configuracao apos migrar, nao so
+no config.lua do jogo. `grep -rn "<ip antigo>"` na raiz do site teria achado na
+hora.
