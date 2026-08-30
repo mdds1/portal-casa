@@ -61,3 +61,12 @@ Na bancada: `sudo systemctl enable --now canary.service`, descomentar o
 `Listen 80` e `a2ensite 000-default`. O config.lua de la ainda traz o `ip`
 antigo, entao ela volta a servir sozinha. **Pare a 301 antes**, ou os dois
 mundos divergem.
+
+## Verificado apos a virada, em 30/08/2026
+
+Bancada (VM 110):  Listen 80 comentado, so a 8080 escutando, porta 80 devolve
+000, login.php antigo inalcancavel, gincana em 302, canary parado e desabilitado.
+
+Producao (VM 301): site 200, login.php chega ao banco, 7171 aberta, canary ativo.
+
+Uma fonte da verdade so.
