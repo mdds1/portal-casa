@@ -327,15 +327,29 @@ sshpass -p "$PVE_PASS" ssh root@100.71.204.68 '
 
 Esperado: nenhum `cluster.fw`, diretório vazio. Anote os endereços: o host é `192.168.15.200` na LAN e `100.71.204.68` na Tailscale.
 
-- [ ] **Step 2: Anotar o caminho de resgate, por escrito, antes de qualquer mudança**
+- [ ] **Step 2: Armar o interruptor de homem morto**
 
-Se o acesso se perder, a recuperação é pelo **console da máquina física** (teclado e monitor no servidor), com:
+Esta é a proteção que torna a tarefa segura: um trabalho agendado que **desliga o firewall sozinho** dali a 10 minutos. Se algo trancar o acesso, o problema se desfaz sem ninguém precisar chegar na máquina física.
 
-```
+```bash
+sshpass -p "$PVE_PASS" ssh root@100.71.204.68 '
+  cat > /root/resgate-firewall.sh <<"EOF"
+#!/bin/sh
+# Desliga o firewall do datacenter. Interruptor de homem morto:
+# se a verificacao pos-mudanca nao cancelar este timer a tempo, ele dispara.
 pvesh set /cluster/firewall/options --enable 0
+logger -t resgate-firewall "firewall desligado pelo interruptor de homem morto"
+EOF
+  chmod 700 /root/resgate-firewall.sh
+  systemd-run --on-active=10min --unit=resgate-firewall /root/resgate-firewall.sh
+  systemctl list-timers resgate-firewall.timer --no-pager'
 ```
 
-Confirme que você entendeu isto antes de seguir. Se não houver como chegar fisicamente na máquina hoje, **pare e reporte** — não vale o risco.
+Esperado: o timer aparece, disparando em ~10 minutos.
+
+**Se o `systemd-run` falhar, pare a tarefa.** Sem o interruptor armado, não se mexe no firewall.
+
+O caminho de último recurso continua sendo o console físico da máquina, com `pvesh set /cluster/firewall/options --enable 0` — mas com o interruptor armado ele não deve ser necessário.
 
 - [ ] **Step 3: Criar as regras de entrada ANTES de fechar a política**
 
@@ -392,7 +406,22 @@ nc -z -w5 192.168.15.10 7172 && echo "FloripaOT 7172: OK"
 curl -s -o /dev/null -w "HA: %{http_code}\n" --max-time 10 http://192.168.15.8/
 ```
 
-**Todos precisam passar.** Qualquer falha: `pvesh set /cluster/firewall/options --policy_in ACCEPT` na hora, e reporte.
+**Todos precisam passar.** Qualquer falha: `pvesh set /cluster/firewall/options --policy_in ACCEPT` na hora, e reporte — ou simplesmente deixe o interruptor de homem morto disparar.
+
+- [ ] **Step 7b: Desarmar o interruptor — só depois de tudo passar**
+
+```bash
+sshpass -p "$PVE_PASS" ssh root@100.71.204.68 '
+  systemctl stop resgate-firewall.timer 2>/dev/null
+  systemctl reset-failed resgate-firewall.timer 2>/dev/null
+  systemctl list-timers resgate-firewall.timer --no-pager
+  rm -f /root/resgate-firewall.sh
+  pvesh get /cluster/firewall/options --output-format json'
+```
+
+Esperado: nenhum timer `resgate-firewall` listado, e o firewall ainda `enable: 1` com `policy_in: DROP`.
+
+**Não faça este passo antes do Step 7 passar inteiro.** Desarmar cedo é jogar fora a rede de segurança justamente na hora em que ela serve.
 
 - [ ] **Step 8: Confirmar que o firewall das VMs continua desligado**
 
@@ -443,7 +472,11 @@ Inverter isso tranca o administrador para fora.
 
 ## Resgate
 
-Se o acesso se perder, pelo console fisico da maquina:
+Durante a aplicacao foi armado um interruptor de homem morto: um
+`systemd-run --on-active=10min` que desligava o firewall sozinho se a
+verificacao nao o cancelasse a tempo. Repetir este trabalho exige rearma-lo.
+
+Ultimo recurso, pelo console fisico da maquina:
 
     pvesh set /cluster/firewall/options --enable 0
 
