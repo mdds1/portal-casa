@@ -26,6 +26,7 @@ o cartao de temperatura deve dizer "sem sensor" — nunca mostrar campo vazio ou
 Outros chips presentes neste host (`gigabyte_wmi-virtual-0`, `acpitz-acpi-0`) nao sao
 o CPU e nao devem ser usados como fonte da temperatura do processador.
 
-Modulos de kernel: `k10temp` e `gigabyte_wmi` foram autocarregados pelo proprio
-`sensors-detect --auto` (nenhum modulo foi forcado manualmente); `/etc/modules`
-nao foi alterado (segue so com `vfio`, `vfio_iommu_type1`, `vfio_pci`).
+Modulos de kernel: `k10temp` e `gigabyte_wmi` ja estavam carregados pelo
+proprio kernel antes de o `sensors-detect --auto` rodar (nenhum modulo foi
+forcado manualmente por ele); `/etc/modules` nao foi alterado (segue so
+com `vfio`, `vfio_iommu_type1`, `vfio_pci`).

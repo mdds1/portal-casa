@@ -1,6 +1,6 @@
 # Restauracao testada
 
-Data do teste: 2026-08-30   # preenchido pelo proprio heredoc ao rodar
+Data do teste: 2026-08-30
 
 O que foi provado: o dump da VM 111 (Home Assistant) restaura sob outro ID
 e da boot. E o unico ativo do parque sem nenhuma outra copia, por isso e ele
