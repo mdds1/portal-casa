@@ -203,7 +203,7 @@ omissão; quando virar produção para jogadores, é uma linha para mudar.
 |---|---|
 | `local-lvm`, `vg-canary` | disco de máquina |
 | `media` (`sdd`) | biblioteca de mídia |
-| `drive` (`sdc`) | **backup, e nada mais** |
+| `drive` (`sdc`) | arquivos da família (SMB) **e** destino de backup |
 | `local` | ISO e templates |
 
 Hoje o `media` aceita `rootdir,images,iso,backup,vztmpl` — tudo — e por isso
@@ -211,11 +211,27 @@ acumula sobra. O conteúdo permitido passa a refletir o papel.
 
 ### 4.5 Backup
 
-Destino único no `sdc`, que hoje está com 1% de uso e não tem outra função. O
-`sdd` fica de fora porque guarda mídia e tem o Jellyfin escrevendo nele: backup e
-carga de trabalho em discos diferentes.
+Destino único no `sdc`. Ele **não** está livre — é o drive de arquivos da família,
+servido por SMB pelo CT 100 (`marcella`, `familia`, `matheus`, `template`, 3,3 GB
+hoje) — mas tem 450 GB livres e, o que importa, **nenhum disco de máquina mora
+nele**. O `sdd` fica de fora porque guarda mídia e tem o Jellyfin escrevendo:
+backup e carga de trabalho em discos diferentes.
 
-- vzdump de todas as VMs e containers, com retenção definida.
+**Retenção — medida, não estimada.** Os vzdumps de julho que ainda estão em
+`/mnt/media/dump` dão a escala real: VM 110 comprimiu para 9,9 GB e o CT 100 para
+10,4 GB. Um ciclo completo do parque passa de 50 GB, e armazenamento de diretório
+não deduplica. Os 7 diários + 4 semanais cogitados dariam ~570 GB em um disco com
+450 GB livres — encheria em semanas.
+
+A retenção fica em **3 diários + 2 semanais + 1 mensal**: seis pontos de
+restauração cobrindo cerca de um mês, em torno de 220 GB, com folga confortável.
+
+**A VM 110 (bancada) fica fora do trabalho automático.** São ~15 GB por cópia de
+ambiente recriável, cujo conteúdo que importa já está no git. Ela é copiada à mão
+antes de mudança arriscada, e só.
+
+- vzdump das máquinas irrecuperáveis — Home Assistant, produção, containers — com
+  a retenção acima.
 - Cópia do `/etc/pve` (configuração do cluster) junto.
 - Os backups de aplicação que já existem (FloripaOT, StarLoco) continuam indo
   para o Drive — nuvem cobre o caso de perder a casa inteira, disco local cobre o
