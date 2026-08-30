@@ -19,6 +19,9 @@
 - Nenhuma alteração de rede, bridge ou endereçamento do host.
 - Senhas e tokens nunca entram em arquivo versionado.
 - Host Proxmox: `root@100.71.204.68` (Tailscale). Repositório de trabalho: `~/projetos/portal-casa` na VM 110.
+- **`$PVE_PASS`**: todos os comandos deste plano usam essa variável. Defina-a **na sessão do shell**, e nunca em arquivo versionado:
+  `read -rsp "senha do PVE: " PVE_PASS && export PVE_PASS && echo`
+  Ela vive só enquanto o shell existir. Se algum comando falhar com "Permission denied", é ela que expirou junto com a sessão.
 - Retenção de backup: **3 diários + 2 semanais + 1 mensal**.
 - Máquinas no trabalho de backup: **100, 101, 102, 104, 111, 120**. A **110 fica fora** (bancada, recriável, ~15 GB por cópia).
 
@@ -296,10 +299,10 @@ Esperado: `destruida`, e depois "does not exist". **Confira o número 199 antes 
 - [ ] **Step 9: Registrar o resultado**
 
 ```bash
-cat > ~/projetos/portal-casa/infra/backup/restauracao-testada.md <<'EOF'
+cat > ~/projetos/portal-casa/infra/backup/restauracao-testada.md <<EOF
 # Restauracao testada
 
-Data do teste: (preencher com a data em que a Tarefa 3 rodou)
+Data do teste: $(date +%F)   # preenchido pelo proprio heredoc ao rodar
 
 O que foi provado: o dump da VM 111 (Home Assistant) restaura sob outro ID
 e da boot. E o unico ativo do parque sem nenhuma outra copia, por isso e ele
@@ -612,7 +615,7 @@ sshpass -p "$PVE_PASS" ssh root@100.71.204.68 \
      printf "%s: %s\n" "$f" "$(grep -c ^onboot "$f")"; done'
 ```
 
-Esperado: `0` em 100.conf? não — em 101, 102, 110 e 120 conforme o levantamento; confira e anote quais.
+Esperado, conforme o levantamento de 2026-08-30: `1` para as máquinas 100, 104, 111 e 120 (que já têm a linha) e `0` para 101, 102 e 110 (que não têm). Anote o que realmente aparecer — se divergir, alguém mexeu depois do levantamento e vale entender por quê antes de seguir.
 
 - [ ] **Step 2: Tornar explícito**
 
