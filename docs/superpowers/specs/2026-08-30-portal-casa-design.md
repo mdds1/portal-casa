@@ -2,6 +2,7 @@
 
 Data: 2026-08-30
 Estado: desenho aprovado em conversa, aguardando revisão escrita
+Documento irmão: `2026-08-30-infra-proxmox-design.md` (o servidor em si)
 
 ## 1. Problema
 
