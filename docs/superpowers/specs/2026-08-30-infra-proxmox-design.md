@@ -327,3 +327,21 @@ A ordem é deliberada: cada passo reduz o risco do seguinte.
 - A troca dos pentes de memória, até haver tempo de testar.
 - Exposição do FloripaOT à internet para jogadores — projeto próprio.
 - Alexa própria via Cloudflare Tunnel e o cancelamento do Nabu Casa.
+- Mover o destino de backup para fora da árvore exportada por SMB. A revisão
+  final achou que `/mnt/drive/dump` fica dentro da mesma árvore que o CT 100
+  exporta (`mp0: /mnt/drive,mp=/dados`), e que o root desse container — ou
+  qualquer coisa que chegue a ele com privilégio pela rede — consegue apagar
+  o diretório e destruir o único backup existente. Risco conhecido, mitigação
+  fica para o próximo plano.
+- Notificação de falha do job de backup. Não há `/etc/pve/notifications.cfg`
+  nem `mailto` configurado, e o postfix está ativo sem alias de root — uma
+  falha às 03:00 vai para `/var/mail/root` sem que ninguém leia. Fica para
+  o próximo plano.
+- Cobertura de bind mounts pelo `vzdump`. O backup não copia `mp0` e afins;
+  isso deixa de fora os dados da família (CT 100, `/mnt/drive`) e a
+  biblioteca de mídia (CT 101 e CT 102, `/mnt/media`). O job protege os
+  sistemas operacionais, não esses dados — decisão que precisa de um plano
+  próprio se for para mudar.
+- Lista `vmid` dinâmica no job de backup. Hoje é uma lista estática
+  (`100,101,102,104,111,120`); uma máquina nova nasce sem backup e sem
+  aviso nenhum disso. Fica para o próximo plano.
