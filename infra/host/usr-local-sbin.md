@@ -14,11 +14,21 @@ Copia nova daqui em diante vai para /root/arquivo/, nunca para o PATH.
 
 Levantada lendo o script em 30/08/2026. O portal vai depender dela.
 
-Alvos aceitos:
+**Sintaxe de invocacao: `TIPO ACAO ID`, separado por espaco.**
+
+    SSH_ORIGINAL_COMMAND="ct status 100"  /usr/local/sbin/ha-pve-power
+    SSH_ORIGINAL_COMMAND="vm status 110"  /usr/local/sbin/ha-pve-power
+
+CUIDADO com uma leitura errada facil de fazer: dentro do script a validacao
+compara `"$TYPE:$ID"`, entao o codigo mostra `vm:110`, `ct:100` etc. Isso e o
+formato INTERNO da checagem, **nao** o que se digita. Passar `status ct:100`
+e recusado.
+
+Alvos aceitos (na forma interna `TIPO:ID`):
   vm:110 | vm:120 | ct:100 | ct:101 | ct:102 | gamebox: | host:
 
-Verbos aceitos:
-  status | start | shutdown | reboot
+Acoes aceitas:
+  status | start | shutdown | reboot | backup_age
 
 Restricoes por alvo:
   - `reboot` so vale para vm:120
