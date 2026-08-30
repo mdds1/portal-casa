@@ -70,3 +70,33 @@ Bancada (VM 110):  Listen 80 comentado, so a 8080 escutando, porta 80 devolve
 Producao (VM 301): site 200, login.php chega ao banco, 7171 aberta, canary ativo.
 
 Uma fonte da verdade so.
+
+## Erro cometido na execucao: conferir codigo HTTP nao e conferir o site
+
+Depois de copiar o MyAAC, `curl -o /dev/null -w "%{http_code}"` devolveu 200 e
+eu dei por bom. Nao estava: o 200 era a **pagina padrao do Debian**.
+
+Causa: o Apache foi instalado ANTES de o site ser copiado, e o pacote cria
+`/var/www/html/index.html`. O rsync foi feito sem `--delete`, entao esse arquivo
+sobreviveu — e o `DirectoryIndex` do Debian lista `index.html` ANTES de
+`index.php`. O site inteiro estava la, mas a raiz servia a pagina do Debian.
+
+Quem viu foi o Matheus, abrindo no navegador.
+
+Duas licoes:
+
+1. **Conferir conteudo, nao codigo.** Para uma pagina, `curl | grep -o "<title>"`
+   custa o mesmo e teria pego na hora. Um 200 so diz que ALGO respondeu.
+2. **Instalar o servidor web DEPOIS de copiar o site**, ou usar `--delete` no
+   rsync — senao restos do pacote se misturam ao conteudo.
+
+Verificado depois da correcao, por conteudo:
+
+    /                          200  Latest News - FloripaOT
+    /?subtopic=characters      200  Characters - FloripaOT
+    /?subtopic=highscores      200  Highscores - FloripaOT
+    /?subtopic=accountmanagement 200  Login - FloripaOT
+    /api/status.php            200
+    /images/items/100.png      200  (1078 bytes) — 32.872 PNGs no lugar
+
+Zero erros ou avisos de PHP em todas.
