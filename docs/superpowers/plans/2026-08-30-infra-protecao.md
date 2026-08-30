@@ -341,6 +341,9 @@ pvesh set /cluster/firewall/options --enable 0
 logger -t resgate-firewall "firewall desligado pelo interruptor de homem morto"
 EOF
   chmod 700 /root/resgate-firewall.sh
+  # Limpa unidade de tentativa anterior: o systemd recusa recriar uma que ainda esteja carregada
+  systemctl stop resgate-firewall.timer 2>/dev/null
+  systemctl reset-failed resgate-firewall 2>/dev/null
   systemd-run --on-active=10min --unit=resgate-firewall /root/resgate-firewall.sh
   systemctl list-timers resgate-firewall.timer --no-pager'
 ```
@@ -358,16 +361,35 @@ Ordem obrigatória: primeiro tudo que é permissão, depois o fechamento.
 ```bash
 sshpass -p "$PVE_PASS" ssh root@100.71.204.68 '
   # Administracao apenas pela Tailscale
-  pvesh create /cluster/firewall/rules --type in --action ACCEPT --source 100.64.0.0/10 --dest 192.168.15.200 --proto tcp --dport 22   --comment "SSH pela Tailscale"
-  pvesh create /cluster/firewall/rules --type in --action ACCEPT --source 100.64.0.0/10 --dest 192.168.15.200 --proto tcp --dport 8006 --comment "Interface do Proxmox pela Tailscale"
+  pvesh create /cluster/firewall/rules --type in --action ACCEPT --enable 1 --source 100.64.0.0/10 --proto tcp --dport 22   --comment "SSH pela Tailscale"
+  pvesh create /cluster/firewall/rules --type in --action ACCEPT --enable 1 --source 100.64.0.0/10 --proto tcp --dport 8006 --comment "Interface do Proxmox pela Tailscale"
   # Trafego interno da casa entre maquinas
-  pvesh create /cluster/firewall/rules --type in --action ACCEPT --source 192.168.15.0/24 --comment "LAN da casa"
+  pvesh create /cluster/firewall/rules --type in --action ACCEPT --enable 1 --source 192.168.15.0/24 --comment "LAN da casa"
   # Tailscale precisa falar consigo mesma
-  pvesh create /cluster/firewall/rules --type in --action ACCEPT --proto udp --dport 41641 --comment "Tailscale"
+  pvesh create /cluster/firewall/rules --type in --action ACCEPT --enable 1 --proto udp --dport 41641 --comment "Tailscale"
   pvesh get /cluster/firewall/rules --output-format json'
 ```
 
-**Confira a saída antes de seguir.** Se as quatro regras não estiverem lá, **pare**.
+**`--enable 1` não é opcional.** Sem ele o Proxmox cria a regra **desativada** (`enable: 0`), e ela aparece no `cluster.fw` com uma **barra vertical no começo da linha**. Um firewall com política `DROP` e regras desativadas bloqueia tudo, inclusive o SSH e a Tailscale — trancando o administrador para fora. Isto já aconteceu uma vez na execução de 30/08/2026.
+
+**Confira a saída antes de seguir.** As quatro regras precisam estar lá **e com `"enable":1`**. Confirme também pelo arquivo:
+
+```bash
+sshpass -p "$PVE_PASS" ssh root@100.71.204.68 'cat /etc/pve/firewall/cluster.fw'
+```
+
+**Nenhuma linha de regra pode começar com `|`.** Se alguma começar, ela está desativada — apague todas e recrie com `--enable 1` antes de seguir.
+
+- [ ] **Step 3b: Conferir que não há regras duplicadas**
+
+Rodar o bloco do Step 3 duas vezes cria as regras em dobro. Duplicata não quebra nada, mas polui e confunde a leitura.
+
+```bash
+sshpass -p "$PVE_PASS" ssh root@100.71.204.68 \
+  'pvesh get /cluster/firewall/rules --output-format json | python3 -c "import sys,json; r=json.load(sys.stdin); print(len(r),\"regras\"); [print(x[\"pos\"], x[\"enable\"], x[\"comment\"]) for x in r]"'
+```
+
+Esperado: **quatro** regras, todas com `enable` igual a `1`. Se houver mais, apague de trás para frente (`pvesh delete /cluster/firewall/rules/<pos>`, do maior para o menor) e recrie.
 
 - [ ] **Step 4: Habilitar o firewall com a política ainda aberta**
 
