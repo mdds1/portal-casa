@@ -23,6 +23,7 @@
   `read -rsp "senha do PVE: " PVE_PASS && export PVE_PASS && echo`
   Ela vive só enquanto o shell existir. Se algum comando falhar com "Permission denied", é ela que expirou junto com a sessão.
 - Retenção de backup: **3 diários + 2 semanais + 1 mensal**.
+- **Endereços de verificação** (corrigidos em execução — os originais estavam errados): FloripaOT em `192.168.15.10:7171` (LAN) ou `100.91.91.40:7171` (Tailscale). Home Assistant em `http://192.168.15.8/` — **porta 80, não 8123**. O host `pve` é `192.168.15.200` / `100.71.204.68`.
 - Máquinas no trabalho de backup: **100, 101, 102, 104, 111, 120**. A **110 fica fora** (bancada, recriável, ~15 GB por cópia).
 
 ---
@@ -178,7 +179,7 @@ Esperado: um `vzdump-lxc-102-*.tar.zst` com tamanho plausível (não zero).
 - [ ] **Step 6: Confirmar que nada saiu do ar**
 
 ```bash
-nc -z -w5 192.168.15.14 7171 && echo "FloripaOT OK"
+nc -z -w5 192.168.15.10 7171 && echo "FloripaOT OK"
 sshpass -p "$PVE_PASS" ssh root@100.71.204.68 'qm status 110; qm status 111'
 ```
 
@@ -230,7 +231,7 @@ Esperado: `Backup job finished successfully`. A VM 111 **continua rodando** — 
 
 ```bash
 sshpass -p "$PVE_PASS" ssh root@100.71.204.68 'qm status 111'
-curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 http://192.168.15.111:8123/
+curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 http://192.168.15.8/
 ```
 
 Esperado: `status: running` e um código HTTP (`200` ou `302`), não timeout.
@@ -279,8 +280,8 @@ Esperado: `status: running`. O `guest cmd` pode falhar sem que seja problema —
 - [ ] **Step 7: Confirmar que a produção continuou intocada**
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 http://192.168.15.111:8123/
-nc -z -w5 192.168.15.14 7171 && echo "FloripaOT OK"
+curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 http://192.168.15.8/
+nc -z -w5 192.168.15.10 7171 && echo "FloripaOT OK"
 sshpass -p "$PVE_PASS" ssh root@100.71.204.68 'free -h'
 ```
 
@@ -450,7 +451,7 @@ Esperado: `0` linhas `unused` e ~35 GB a mais livres em `/mnt/media`.
 
 ```bash
 sshpass -p "$PVE_PASS" ssh root@100.71.204.68 'qm status 110'
-nc -z -w5 192.168.15.14 7171 && echo "FloripaOT OK"
+nc -z -w5 192.168.15.10 7171 && echo "FloripaOT OK"
 ```
 
 Esperado: `status: running` e `FloripaOT OK`. Remover um disco `unused` não reinicia a máquina.
@@ -644,7 +645,7 @@ Esperado: sete linhas, uma por máquina. Só a 111 com `1`.
 
 ```bash
 sshpass -p "$PVE_PASS" ssh root@100.71.204.68 'qm status 110; qm status 111'
-nc -z -w5 192.168.15.14 7171 && echo "FloripaOT OK"
+nc -z -w5 192.168.15.10 7171 && echo "FloripaOT OK"
 ```
 
 Esperado: ambas `running` e `FloripaOT OK`. `onboot` só vale no próximo boot do host.
