@@ -7,6 +7,33 @@ Documento irmão: `2026-08-30-portal-casa-design.md`
 Este documento trata do servidor em si. O portal consome o inventário descrito
 aqui; os dois avançam juntos, mas nenhum depende do outro para começar.
 
+## 0. Restrição inegociável
+
+**O FloripaOT continua no ar durante todo o trabalho.** Ele tem jogadores e é o
+serviço que o resto da casa existe para hospedar. Nenhum passo deste documento
+pode derrubá-lo por conveniência de execução.
+
+Na prática, isso significa:
+
+- **Nenhum passo remove a cópia que está funcionando antes de a nova estar
+  provada.** Na migração da §7 as duas existem ao mesmo tempo, e o
+  `canary.service` da VM 110 só é desligado depois que a máquina nova aceitou
+  login de jogador de verdade.
+- **A única parada planejada é o dump do banco**, curta, avisada, e em horário de
+  pouco movimento. É a única forma de capturar o banco sem estado pela metade.
+- **A limpeza da VM 110 (§6.2) não toca em nada do servidor** — só material
+  recriável de compilação, editor e cache. O binário, o datapack, o banco e o
+  `canary.service` ficam intocados.
+- **O firewall (§6.4) mantém 7171 e 7172 abertas** desde a primeira regra, e é
+  aplicado com janela de teste e reversão pronta.
+- **Antes de qualquer passo com risco, existe backup restaurável** — é por isso
+  que o backup é o item 1 e não o item 5.
+- Se um passo não puder ser feito sem derrubar o servidor, ele **para e volta
+  para discussão**, em vez de ser executado assim mesmo.
+
+Vale o mesmo para o Home Assistant, que sustenta a rotina da casa: ele não fica
+fora do ar sem aviso.
+
 ## 1. Retrato de hoje
 
 Levantamento somente leitura feito em 2026-08-30 no host `pve` (PVE 9.2.4).
