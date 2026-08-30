@@ -1,5 +1,12 @@
 # Tunel Cloudflare — acesso remoto sem abrir porta
 
+> **Desativado em 30/08/2026, poucas horas depois de subir.** O acesso remoto ao
+> Home Assistant passou a ser por nginx + Tailscale no mesmo CT 103 — ver
+> `infra/edge/ct-103-nginx.md`. O tunel continua instalado e credenciado; voltar
+> a ele e `systemctl enable --now cloudflared` mais trocar o registro `ha` de
+> volta para CNAME `<id>.cfargotunnel.com`, proxied. O motivo da troca foi
+> escopo, nao defeito: o tunel expunha a tela de login para a internet inteira.
+
 Feito em 30/08/2026.
 
 ## O problema
