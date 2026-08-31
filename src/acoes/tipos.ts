@@ -1,6 +1,8 @@
 // A lista de verbos e fechada e mora aqui. Ela e conferida DUAS vezes: neste
 // portal e, de novo, dentro do /usr/local/sbin/portal-acao no host. As duas
-// listas precisam continuar iguais.
+// listas precisam continuar iguais -- e desde a revisao final isso e provado:
+// test/consistencia.test.ts le infra/portal/portal-acao e compara os dois
+// `case` (verbos e alvos) com esta lista e com a semente do inventario.
 export const VERBOS = ["start", "shutdown", "reboot"] as const;
 export type Verbo = (typeof VERBOS)[number];
 

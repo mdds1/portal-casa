@@ -73,16 +73,58 @@ Deliberadamente FORA da lista, e por isso mesmo:
 Qualquer `tipo:id` fora da tabela cai no `case` padrao e e recusado com
 `alvo recusado`, saida 3.
 
+## Codigos de saida, e por que o 4 existe
+
+| saida | significado |
+|---|---|
+| 0 | a acao rodou e o `qm`/`pct` devolveu sucesso; stdout traz o estado depois dela |
+| 2 | pedido malformado, tipo invalido ou verbo fora da lista |
+| 3 | alvo fora da lista fechada |
+| 4 | a acao foi tentada e o `qm`/`pct` FALHOU; stdout traz `falhou: <comando> (codigo N)` |
+
+O 4 e a diferenca entre um log honesto e um log que mente. Antes, os tres
+verbos terminavam em `|| true` e o script saia 0 sempre: um `pct shutdown`
+que falhava virava `ok=1` no `acoes_log` — a unica testemunha de que uma
+maquina real mudou de estado afirmando um sucesso que nao houve.
+
+## O limite de tempo (`LIMITE=12`)
+
+`qm shutdown` e `pct shutdown` BLOQUEIAM esperando o guest sair, e os padroes
+do Proxmox (60 s no pct, 180 s no qm) sao maiores que os 20 s que o portal da
+ao SSH (`src/acoes/wrapper.ts`). Sem limite proprio, o portal matava a conexao
+antes de saber o desfecho e gravava `ok=0` numa acao que talvez tivesse dado
+certo — o erro do achado 1 ao contrario.
+
+Passamos `--timeout 12` ao `qm`/`pct`, confortavelmente dentro da janela do
+SSH: o comando devolve um codigo de saida de verdade, e uma requisicao HTTP
+nunca fica pendurada. Quem mexer no `msLimite` do wrapper tem que manter esta
+folga.
+
+No `pct` vai junto `--forceStop 0`. O padrao (`1`) mata o container quando o
+tempo acaba, e o portal registraria `ok` para o que foi, na pratica, um puxao
+de tomada. Preferimos a verdade: um guest que se recusa a desligar em 12 s sai
+com 4, o operador ve a faixa de falha e decide se forca a mao.
+
 ## A lista de verbos
 
-Verbos aceitos por maquina (`vm`/`ct`): `start`, `shutdown`, `reboot`, e o
-verbo interno `status` (usado so para a leitura final, nao chega como pedido
-separado do portal). O host so aceita `shutdown`.
+Verbos aceitos por maquina (`vm`/`ct`): `start`, `shutdown`, `reboot`. O host
+so aceita `shutdown`.
+
+`status` NAO e um verbo aceito: um pedido `ct status 201` e recusado com
+`verbo invalido`. A leitura de estado continua existindo, mas so como ultima
+linha do script, depois de uma acao que deu certo — nunca como pedido do
+portal. Era o unico item em que as duas listas divergiam (o portal nunca teve
+`status` em `VERBOS`), e a lista mais curta e a que vale numa barreira.
 
 **Esta lista aparece em DOIS lugares e os dois precisam continuar iguais:**
 
 1. Aqui, no `case "$VERBO" in ...` de `infra/portal/portal-acao`.
 2. Em `src/acoes/tipos.ts`, na constante `VERBOS`.
+
+Desde a correcao da revisao final isso NAO depende so de disciplina:
+`test/consistencia.test.ts` le este arquivo, extrai os dois `case` e compara
+com `VERBOS` e com as maquinas `acionavel=1` de `src/db/semente.ts`. Ele roda
+em `npm test`. Ainda assim, conferir os dois no mesmo commit.
 
 Se um verbo for adicionado, removido ou renomeado em um lugar sem o outro, o
 portal e o host divergem silenciosamente: ou o portal oferece um botao que o
