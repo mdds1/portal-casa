@@ -19,19 +19,19 @@ test("escapar aceita numero, nulo e indefinido sem quebrar", () => {
 });
 
 test("nome de maquina malicioso nao vira HTML no cartao", () => {
-  const h = cartao({ titulo: `<img src=x onerror=alert(1)>`, estado: "ok", linhas: [] });
+  const h = cartao({ titulo: `<img src=x onerror=alert(1)>`, estado: "ok", linhasHtml: [] });
   assert.ok(!h.includes("<img"), "o nome veio da API do Proxmox: nunca confiar");
   assert.ok(h.includes("&lt;img"));
 });
 
 test("o menu esconde Infraestrutura do papel casa", () => {
-  const dela = layout({ titulo: "t", papel: "casa", atual: "/", corpo: "" });
+  const dela = layout({ titulo: "t", papel: "casa", atual: "/", corpoHtml: "" });
   assert.ok(!dela.includes("/infraestrutura"));
-  const dele = layout({ titulo: "t", papel: "admin", atual: "/", corpo: "" });
+  const dele = layout({ titulo: "t", papel: "admin", atual: "/", corpoHtml: "" });
   assert.ok(dele.includes("/infraestrutura"));
 });
 
 test("o layout declara viewport, porque a tela dela e o celular", () => {
-  assert.ok(layout({ titulo: "t", papel: "casa", atual: "/", corpo: "" })
+  assert.ok(layout({ titulo: "t", papel: "casa", atual: "/", corpoHtml: "" })
     .includes('name="viewport"'));
 });

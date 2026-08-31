@@ -46,7 +46,12 @@ const MENU: ItemMenu[] = [
   { href: "/infraestrutura", rotulo: "Infraestrutura", papel: "admin" },
 ];
 
-export function layout(o: { titulo: string; papel: string; atual: string; corpo: string }): string {
+export function layout(o: {
+  titulo: string;
+  papel: string;
+  atual: string;
+  corpoHtml: string; // HTML pronto (cada pagina monta seu conteudo com escapar)
+}): string {
   const itens = MENU
     .filter((i) => o.papel === "admin" || i.papel === "casa")
     .map((i) => `<a href="${i.href}"${i.href === o.atual ? ' aria-current="page"' : ""}>${escapar(i.rotulo)}</a>`)
@@ -57,5 +62,5 @@ export function layout(o: { titulo: string; papel: string; atual: string; corpo:
 <title>${escapar(o.titulo)} — Portal da Casa</title>
 <style>${ESTILO}</style>
 <header>${itens}<form class="sair" method="post" action="/sair"><button>Sair</button></form></header>
-<main>${o.corpo}</main></html>`;
+<main>${o.corpoHtml}</main></html>`;
 }
