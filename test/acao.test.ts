@@ -162,3 +162,88 @@ test("alvo que nao e numero nem 'host' e recusado sem chamar nada", async () => 
     assert.equal(chamou, false);
   } finally { s.close(); }
 });
+
+test("POST /acao com content-type que nao e urlencoded vira 403 registrado, nao 500", async () => {
+  let chamou = false;
+  const { db, s, base } = montar(async () => { chamou = true; return bom("running"); });
+  try {
+    const c = await entrar(base, "matheus", "s1");
+    const r = await fetch(`${base}/acao`, {
+      method: "POST",
+      headers: { cookie: c, "content-type": "application/json" },
+      body: JSON.stringify({ alvo: "201", verbo: "start", csrf: "x", confirmado: "1" }),
+      redirect: "manual",
+    });
+    assert.equal(r.status, 403, "corpo torto nao pode virar 500");
+    assert.equal(chamou, false);
+    const log = db.prepare("SELECT usuario, ok FROM acoes_log ORDER BY id DESC LIMIT 1").get() as
+      { usuario: string; ok: number };
+    assert.equal(log.usuario, "matheus");
+    assert.equal(log.ok, 0);
+  } finally { s.close(); }
+});
+
+test("POST /acao sem content-type nenhum vira 403 registrado, nao 500", async () => {
+  let chamou = false;
+  const { db, s, base } = montar(async () => { chamou = true; return bom("running"); });
+  try {
+    const c = await entrar(base, "matheus", "s1");
+    const r = await fetch(`${base}/acao`, {
+      method: "POST",
+      headers: { cookie: c },
+      redirect: "manual",
+    });
+    assert.equal(r.status, 403, "corpo ausente nao pode virar 500");
+    assert.equal(chamou, false);
+    const log = db.prepare("SELECT usuario, ok FROM acoes_log ORDER BY id DESC LIMIT 1").get() as
+      { usuario: string; ok: number };
+    assert.equal(log.usuario, "matheus");
+    assert.equal(log.ok, 0);
+  } finally { s.close(); }
+});
+
+test("csrf invalido fica registrado em acoes_log, nao so recusado", async () => {
+  const { db, s, base } = montar(async () => bom("running"));
+  try {
+    const c = await entrar(base, "matheus", "s1");
+    const r = await postar(base, c, { alvo: "201", verbo: "start", csrf: "forjado", confirmado: "1" });
+    assert.equal(r.status, 403);
+    const log = db.prepare("SELECT usuario, verbo, alvo, ok, detalhe FROM acoes_log ORDER BY id DESC LIMIT 1").get() as
+      { usuario: string; verbo: string; alvo: string; ok: number; detalhe: string };
+    assert.equal(log.usuario, "matheus");
+    assert.equal(log.ok, 0);
+    assert.match(log.detalhe, /csrf/i);
+  } finally { s.close(); }
+});
+
+test("alvo invalido fica registrado em acoes_log, nao so recusado", async () => {
+  const { db, s, base } = montar(async () => bom("running"));
+  try {
+    const c = await entrar(base, "matheus", "s1");
+    const t = await csrfDaPagina(base, c);
+    const r = await postar(base, c, { alvo: "../../etc", verbo: "start", csrf: t, confirmado: "1" });
+    assert.equal(r.status, 403);
+    const log = db.prepare("SELECT usuario, verbo, alvo, ok, detalhe FROM acoes_log ORDER BY id DESC LIMIT 1").get() as
+      { usuario: string; verbo: string; alvo: string; ok: number; detalhe: string };
+    assert.equal(log.usuario, "matheus");
+    assert.equal(log.ok, 0);
+    assert.match(log.detalhe, /alvo/i);
+  } finally { s.close(); }
+});
+
+test("a tela de confirmacao escapa o \"voltar\" refletido do POST", async () => {
+  const { s, base } = montar(async () => bom("stopped"));
+  try {
+    const c = await entrar(base, "matheus", "s1");
+    const t = await csrfDaPagina(base, c);
+    const bruto = `"><script>alert(1)</script>`;
+    const r = await postar(base, c, { alvo: "301", verbo: "shutdown", csrf: t, voltar: bruto });
+    assert.equal(r.status, 200);
+    const html = await r.text();
+    assert.ok(!html.includes(bruto), "o valor cru nao pode aparecer na pagina");
+    assert.ok(
+      html.includes("&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"),
+      "o valor escapado precisa aparecer no lugar do cru"
+    );
+  } finally { s.close(); }
+});

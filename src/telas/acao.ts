@@ -45,6 +45,7 @@ function nomeDaMaquina(db: Database.Database, vmid: number): string | null {
 function telaConfirmacao(
   deps: DepsAcao,
   req: Parameters<RequestHandler>[0],
+  corpo: Record<string, unknown>,
   alvo: Alvo,
   verbo: Verbo
 ): string {
@@ -70,8 +71,8 @@ ${aviso}
 <form method="post" action="/acao" class="${alvo.tipo === "host" ? "perigo" : ""}">
   <input type="hidden" name="alvo" value="${escapar(alvo.tipo === "host" ? "host" : alvo.vmid)}">
   <input type="hidden" name="verbo" value="${escapar(verbo)}">
-  <input type="hidden" name="csrf" value="${escapar(String(req.body.csrf ?? ""))}">
-  <input type="hidden" name="voltar" value="${escapar(String(req.body.voltar ?? ""))}">
+  <input type="hidden" name="csrf" value="${escapar(String(corpo.csrf ?? ""))}">
+  <input type="hidden" name="voltar" value="${escapar(String(corpo.voltar ?? ""))}">
   <input type="hidden" name="confirmado" value="1">
   <button>Sim, ${escapar(ROTULOS[verbo].toLowerCase())}</button>
 </form>
@@ -89,11 +90,17 @@ export function rotaAcao(deps: DepsAcao): RequestHandler {
   return async (req, res) => {
     const sessao = req.sessao!;
     const usuario = loginDoUsuario(deps.db, sessao.usuario);
-    const bruto = String(req.body.alvo ?? "");
-    const verbo = String(req.body.verbo ?? "");
-    const confirmado = req.body.confirmado === "1";
+    // express.urlencoded so popula req.body quando o content-type casa; para
+    // qualquer outro content-type (ou nenhum), o Express 5 deixa req.body
+    // undefined. Sem este corpo defensivo, req.body.alvo estoura em 500 antes
+    // de registrar a tentativa -- e a restricao e registrar TODA tentativa,
+    // inclusive a que chega com corpo torto.
+    const corpo = (req.body ?? {}) as Record<string, unknown>;
+    const bruto = String(corpo.alvo ?? "");
+    const verbo = String(corpo.verbo ?? "");
+    const confirmado = corpo.confirmado === "1";
 
-    if (!conferirCsrf(String(req.body.csrf ?? ""), sessao.id, deps.segredoSessao)) {
+    if (!conferirCsrf(String(corpo.csrf ?? ""), sessao.id, deps.segredoSessao)) {
       registrar(deps.db, usuario, verbo || "?", bruto || "?", false, "csrf invalido");
       return res.status(403).send("Pedido invalido.");
     }
@@ -114,13 +121,13 @@ export function rotaAcao(deps: DepsAcao): RequestHandler {
     // a partir daqui verbo e um Verbo de verdade.
     const v = verbo as Verbo;
     if (ehDestrutivo(v) && !confirmado) {
-      return res.type("html").send(telaConfirmacao(deps, req, alvo, v));
+      return res.type("html").send(telaConfirmacao(deps, req, corpo, alvo, v));
     }
 
     const r = await acionar(deps.exec, alvo, v);
     registrar(deps.db, usuario, v, nomeDoAlvo(alvo), r.ok, r.ok ? r.dado : r.erro);
     return res.redirect(
-      alvo.tipo === "host" ? "/" : (req.body.voltar === "infra" ? "/infraestrutura" : "/")
+      alvo.tipo === "host" ? "/" : (corpo.voltar === "infra" ? "/infraestrutura" : "/")
     );
   };
 }
