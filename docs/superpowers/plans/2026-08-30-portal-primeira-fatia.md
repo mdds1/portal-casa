@@ -1000,9 +1000,9 @@ export function rotasLogin(db: Database.Database, segredo: string): Router {
 }
 ```
 
-Nota: `escapar` vem da Tarefa 9. Se implementar esta tarefa antes, crie
-`src/html/base.ts` com apenas a funcao `escapar` (o codigo esta na Tarefa 9) e a
-Tarefa 9 acrescenta o resto.
+Nota: `escapar` so ganha corpo na Tarefa 7. Como esta tarefa ja precisa dele,
+crie agora `src/html/base.ts` contendo **apenas** a funcao `escapar` — o codigo
+exato esta no Passo 3 da Tarefa 7 — e deixe o resto do arquivo para la.
 
 - [ ] **Passo 9: modificar `src/app.ts`**
 
@@ -1039,7 +1039,7 @@ app.get("/infraestrutura", exigirPapel(deps.db, "admin"), (_req, res) => {
 });
 ```
 
-A Tarefa 11 substitui o corpo dela.
+A Tarefa 9 substitui o corpo dela.
 
 - [ ] **Passo 10: `scripts/criar-usuario.ts`**
 
