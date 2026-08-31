@@ -25,6 +25,7 @@ async function servidor(caches: {
   const app = criarApp({
     db,
     segredoSessao: "teste",
+    exec: async () => bom("running"),
     caches: {
       pve: new Cache(caches.pve ?? (async () => bom(RECURSOS))),
     },

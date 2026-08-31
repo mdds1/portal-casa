@@ -5,6 +5,8 @@ import { carregarSessao, exigirLogin, exigirPapel } from "./auth/middleware.js";
 import { rotasLogin } from "./telas/login.js";
 import { rotaInicio, type Caches } from "./telas/inicio.js";
 import { rotaInfraestrutura } from "./telas/infraestrutura.js";
+import { rotaAcao } from "./telas/acao.js";
+import type { Executor } from "./acoes/wrapper.js";
 import { escapar } from "./html/base.js";
 
 // Pagina curta para 404 e para erro: nunca stack trace no navegador. O
@@ -21,6 +23,7 @@ export type Deps = {
   db: Database.Database;
   segredoSessao: string;
   caches: Caches;
+  exec: Executor;
 };
 
 export function criarApp(deps: Deps): express.Express {
@@ -32,10 +35,15 @@ export function criarApp(deps: Deps): express.Express {
   app.get("/saude", (_req, res) => { res.json({ ok: true }); });
   app.use(rotasLogin(deps.db, deps.segredoSessao));
 
-  app.get("/", exigirLogin, rotaInicio({ db: deps.db, caches: deps.caches }));
+  app.get("/", exigirLogin,
+    rotaInicio({ db: deps.db, caches: deps.caches, segredoSessao: deps.segredoSessao }));
 
   app.get("/infraestrutura", exigirPapel(deps.db, "admin"),
-    rotaInfraestrutura({ db: deps.db, caches: deps.caches }));
+    rotaInfraestrutura({ db: deps.db, caches: deps.caches, segredoSessao: deps.segredoSessao }));
+
+  app.post("/acao", exigirLogin, rotaAcao({
+    db: deps.db, segredoSessao: deps.segredoSessao, exec: deps.exec,
+  }));
 
   app.use((_req, res) => {
     res.status(404).type("html").send(paginaErro("Nao encontrado", "Esta pagina nao existe."));

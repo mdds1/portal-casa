@@ -28,6 +28,7 @@ async function comAdmin() {
     .run("matheus", "Matheus", gerarHash("s1"), "admin");
   const app = criarApp({
     db, segredoSessao: "teste",
+    exec: async () => bom("running"),
     caches: {
       pve: new Cache(async () => bom(RECURSOS)),
     },
