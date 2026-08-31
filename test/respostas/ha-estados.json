@@ -1,0 +1,5 @@
+[
+ {"entity_id":"sensor.pve_temperatura","state":"46.0","attributes":{"friendly_name":"Temperatura do PVE"}},
+ {"entity_id":"switch.ct_jellyfin","state":"on","attributes":{"friendly_name":"CT Jellyfin"}},
+ {"entity_id":"sensor.indisponivel","state":"unavailable","attributes":{"friendly_name":"Sensor fora do ar"}}
+]

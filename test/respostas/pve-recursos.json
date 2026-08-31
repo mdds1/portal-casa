@@ -1,0 +1,6 @@
+{"data":[
+ {"id":"qemu/301","type":"qemu","vmid":301,"name":"floripaot","status":"running","cpu":0.021,"mem":2147483648,"maxmem":8589934592,"node":"pve"},
+ {"id":"lxc/103","type":"lxc","vmid":103,"name":"portal","status":"running","cpu":0.001,"mem":54525952,"maxmem":536870912,"node":"pve"},
+ {"id":"lxc/104","type":"lxc","vmid":104,"name":"starloco","status":"stopped","cpu":0,"mem":0,"maxmem":2147483648,"node":"pve"},
+ {"id":"storage/pve/local","type":"storage","storage":"local","status":"available","node":"pve"}
+]}
