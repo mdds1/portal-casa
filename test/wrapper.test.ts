@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { comandoDe, acionar, type Executor } from "../src/acoes/wrapper.js";
+import { comandoDe, acionar, mensagemDeFalha, type Executor } from "../src/acoes/wrapper.js";
 import { bom, ruim } from "../src/fontes/tipos.js";
 
 test("o comando enviado ao host tem a forma exata que o portal-acao espera", () => {
@@ -37,4 +37,23 @@ test("executor que LANCA nao derruba quem chamou", async () => {
   const r = await acionar(exec, { tipo: "host" }, "shutdown");
   assert.equal(r.ok, false, "acionar precisa segurar a excecao");
   if (!r.ok) assert.match(r.erro, /ssh sumiu/);
+});
+
+test("mensagemDeFalha nunca vaza a chave nem o destino do erro.message do execFile", () => {
+  const chaveFalsa = "/home/matheus/.ssh/chave_secreta";
+  const destinoFalso = "destino-secreto@10.0.0.5";
+  const erroForjado = Object.assign(
+    new Error(`Command failed: false -i ${chaveFalsa} ${destinoFalso} host shutdown`),
+    { code: 255 }
+  );
+  const msg = mensagemDeFalha(erroForjado, "", "");
+  assert.doesNotMatch(msg, /chave_secreta/);
+  assert.doesNotMatch(msg, /10\.0\.0\.5/);
+  assert.doesNotMatch(msg, /destino-secreto/);
+});
+
+test("mensagemDeFalha usa a saida do portal-acao quando existe", () => {
+  const erroForjado = Object.assign(new Error("Command failed"), { code: 3 });
+  const msg = mensagemDeFalha(erroForjado, "", "alvo recusado\n");
+  assert.match(msg, /alvo recusado/);
 });
