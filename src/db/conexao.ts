@@ -20,6 +20,14 @@ export function abrirBanco(caminho: string): Database.Database {
     db.exec("ALTER TABLE maquinas ADD COLUMN acionavel INTEGER NOT NULL DEFAULT 0");
   }
 
+  // Mesma armadilha, agora em `servicos`: a arvore do Mapa precisa das tres
+  // colunas, e o banco de producao ja existe sem elas.
+  const cs = db.prepare("PRAGMA table_info(servicos)").all() as { name: string }[];
+  const tem = (n: string) => cs.some((c) => c.name === n);
+  if (!tem("categoria")) db.exec("ALTER TABLE servicos ADD COLUMN categoria TEXT NOT NULL DEFAULT 'Outros'");
+  if (!tem("grupo")) db.exec("ALTER TABLE servicos ADD COLUMN grupo TEXT NOT NULL DEFAULT ''");
+  if (!tem("ordem")) db.exec("ALTER TABLE servicos ADD COLUMN ordem INTEGER NOT NULL DEFAULT 0");
+
   // Os papeis sao estrutura, nao dado de usuario: existem sempre.
   const inserir = db.prepare("INSERT OR IGNORE INTO papeis (nome, poder) VALUES (?, ?)");
   inserir.run("admin", 100);

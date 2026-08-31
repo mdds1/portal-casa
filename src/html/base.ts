@@ -91,6 +91,7 @@ type ItemMenu = { href: string; rotulo: string; poderMinimo: number };
 
 const MENU: ItemMenu[] = [
   { href: "/", rotulo: "Inicio", poderMinimo: 10 },
+  { href: "/mapa", rotulo: "Mapa", poderMinimo: 10 },
   { href: "/infraestrutura", rotulo: "Infraestrutura", poderMinimo: 100 },
 ];
 
@@ -110,5 +111,31 @@ export function layout(o: {
 <title>${escapar(o.titulo)} — Portal da Casa</title>
 <style>${ESTILO}</style>
 <header>${itens}<form class="sair" method="post" action="/sair"><button>Sair</button></form></header>
-<main>${o.corpoHtml}</main></html>`;
+<main>${o.corpoHtml}</main></html>
+/* Mapa: a arvore da casa. O fio vertical a esquerda de cada ramo e o que
+   transforma indentacao em hierarquia visivel — sem ele isto seria so uma
+   lista com margem. Cada folha e uma grade de colunas fixas para os olhos
+   varrerem porta e maquina em coluna, que e como se administra. */
+.mapa { display:grid; gap:1.25rem; }
+.tronco h2 { margin:0 0 .5rem; font-size:1.05rem; letter-spacing:.02em;
+  padding-bottom:.3rem; border-bottom:1px solid var(--borda); }
+.galho { margin:.7rem 0 .25rem; font-size:.8rem; font-weight:600;
+  text-transform:uppercase; letter-spacing:.06em; color:var(--fraco); }
+.ramo { list-style:none; margin:0 0 .2rem; padding:0 0 0 .9rem;
+  border-left:2px solid var(--borda); }
+.folha { display:grid; align-items:baseline; gap:.15rem .6rem; padding:.3rem 0;
+  grid-template-columns:auto minmax(9rem,14rem) 4.5rem 1fr;
+  border-bottom:1px solid color-mix(in srgb, var(--borda) 45%, transparent); }
+.folha:last-child { border-bottom:0; }
+.folha .nome { font-weight:600; }
+.folha .porta { font-variant-numeric:tabular-nums; color:var(--fraco);
+  font-size:.85rem; text-align:right; }
+.folha .onde { color:var(--fraco); font-size:.85rem; }
+.folha .nota { grid-column:2 / -1; color:var(--fraco); font-size:.8rem; }
+@media (max-width:640px) {
+  .folha { grid-template-columns:auto 1fr auto; }
+  .folha .onde { grid-column:2 / -1; }
+  .folha .nota { grid-column:2 / -1; }
+}
+`;
 }

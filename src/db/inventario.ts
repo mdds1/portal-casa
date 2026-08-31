@@ -20,6 +20,9 @@ export type Servico = {
   porta: number | null;
   host_checagem: string | null;
   url: string | null;
+  categoria: string;
+  grupo: string;
+  ordem: number;
   papel_minimo: string;
 };
 
@@ -50,4 +53,16 @@ export function poderDoPapel(db: Database.Database, papel: string): number {
     | { poder: number }
     | undefined;
   return linha?.poder ?? 0;
+}
+
+// A arvore do Mapa. Usa o mesmo FILTRO por papel das outras consultas — quem
+// nao pode ver um servico tambem nao o ve aqui — e ordena pelos galhos, para a
+// tela so precisar agrupar sequencialmente.
+export function listarArvore(db: Database.Database, papel: string): Servico[] {
+  return db
+    .prepare(
+      `SELECT * FROM servicos WHERE ${FILTRO}
+       ORDER BY categoria, grupo, ordem, nome`
+    )
+    .all(papel) as Servico[];
 }
