@@ -74,8 +74,8 @@ export function rotaInicio(deps: DepsTela): RequestHandler {
         s.url ? linkServico(s.url) : "",
       ].filter(Boolean);
       const m = maquinas.find((x) => x.vmid === s.maquina_vmid);
-      const acoes = m && m.acionavel ? botoesDeAcao(m.vmid, csrf, "inicio") : "";
-      return cartao({ titulo: s.nome, estado, linhasHtml, nota: s.descricao }) + acoes;
+      const rodapeHtml = m && m.acionavel ? botoesDeAcao(m.vmid, csrf, "inicio") : "";
+      return cartao({ titulo: s.nome, estado, linhasHtml, nota: s.descricao, rodapeHtml });
     });
 
     const aviso = pve.desatualizado

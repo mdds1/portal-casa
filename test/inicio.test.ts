@@ -85,3 +85,42 @@ test("a Marcella ve botao do Jellyfin e nenhum do que nao e dela", async () => {
     assert.doesNotMatch(html, /name="alvo" value="host"/, "e o host muito menos");
   } finally { s.close(); }
 });
+
+test("os botoes de acao ficam DENTRO do cartao da propria maquina, nao soltos na grade", async () => {
+  // Regressao do defeito visual/de seguranca: os botoes apareciam como
+  // irmaos do <section class="cartao">, celulas soltas do grid — impossivel
+  // dizer com certeza a qual maquina cada grupo de botoes pertence. Os
+  // testes antigos so procuravam os campos em html.includes()/match() na
+  // pagina inteira, e eles estavam la — so no lugar errado. Este teste
+  // recorta a pagina em blocos de cartao e prova contencao, nao presenca.
+  const { base, s, entrar } = await servidor();
+  try {
+    const c = await entrar("marcella", "s2");
+    const html = await (await fetch(base + "/", { headers: { cookie: c } })).text();
+
+    const blocos = html.match(/<section class="cartao">[\s\S]*?<\/section>/g) ?? [];
+    assert.ok(blocos.length > 0, "a pagina tem que ter pelo menos um cartao");
+
+    const blocoJellyfin = blocos.find((b) => b.includes("Jellyfin"));
+    assert.ok(blocoJellyfin, "tem que existir um cartao do Jellyfin");
+    assert.match(
+      blocoJellyfin!,
+      /name="alvo" value="201"/,
+      "o botao do Jellyfin tem que estar DENTRO do cartao do Jellyfin"
+    );
+
+    // Nenhum grupo de botoes pode sobrar fora de um bloco de cartao: some
+    // toda ocorrencia de class="acoes" dentro de algum bloco e compare com
+    // o total na pagina inteira.
+    const totalAcoesNaPagina = (html.match(/class="acoes"/g) ?? []).length;
+    const totalAcoesDentroDeCartoes = blocos.reduce(
+      (soma, b) => soma + (b.match(/class="acoes"/g) ?? []).length,
+      0
+    );
+    assert.equal(
+      totalAcoesDentroDeCartoes,
+      totalAcoesNaPagina,
+      "nenhum bloco de botoes pode ficar fora de um <section class=\"cartao\">"
+    );
+  } finally { s.close(); }
+});
