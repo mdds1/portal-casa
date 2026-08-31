@@ -1,9 +1,14 @@
 import express from "express";
 import type Database from "better-sqlite3";
-import { carregarSessao, exigirPapel } from "./auth/middleware.js";
+import { carregarSessao, exigirLogin, exigirPapel } from "./auth/middleware.js";
 import { rotasLogin } from "./telas/login.js";
+import { rotaInicio, type Caches } from "./telas/inicio.js";
 
-export type Deps = { db: Database.Database; segredoSessao: string };
+export type Deps = {
+  db: Database.Database;
+  segredoSessao: string;
+  caches: Caches;
+};
 
 export function criarApp(deps: Deps): express.Express {
   const app = express();
@@ -13,6 +18,8 @@ export function criarApp(deps: Deps): express.Express {
 
   app.get("/saude", (_req, res) => { res.json({ ok: true }); });
   app.use(rotasLogin(deps.db, deps.segredoSessao));
+
+  app.get("/", exigirLogin, rotaInicio({ db: deps.db, caches: deps.caches }));
 
   // Rota provisoria, so para o teste de 403 ter alvo; a Task 9 substitui o corpo.
   app.get("/infraestrutura", exigirPapel(deps.db, "admin"), (_req, res) => {
