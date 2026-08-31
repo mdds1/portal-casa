@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS servicos (
   porta         INTEGER,
   host_checagem TEXT,
   url           TEXT,
+  -- A arvore do Mapa: categoria e o galho de cima, grupo o do meio. Sao texto
+  -- livre de proposito — a organizacao e humana e nao existe em lugar nenhum
+  -- para ser descoberta. `ordem` decide a posicao dentro do grupo.
+  categoria     TEXT NOT NULL DEFAULT 'Outros',
+  grupo         TEXT NOT NULL DEFAULT '',
+  ordem         INTEGER NOT NULL DEFAULT 0,
   papel_minimo  TEXT NOT NULL REFERENCES papeis(nome)
 );
 
@@ -65,3 +71,8 @@ CREATE TABLE IF NOT EXISTS acoes_log (
   ok       INTEGER NOT NULL,
   detalhe  TEXT NOT NULL DEFAULT ''
 );
+
+-- A semente reescreve os servicos a cada arranque (ON CONFLICT DO UPDATE), e
+-- para isso precisa de um alvo de conflito. Indice, e nao constraint na tabela,
+-- porque indice pode ser criado num banco que ja existe.
+CREATE UNIQUE INDEX IF NOT EXISTS servicos_unicos ON servicos (maquina_vmid, nome);

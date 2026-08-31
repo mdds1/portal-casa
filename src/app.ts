@@ -5,6 +5,7 @@ import { carregarSessao, exigirLogin, exigirPapel } from "./auth/middleware.js";
 import { rotasLogin } from "./telas/login.js";
 import { rotaInicio, type Caches } from "./telas/inicio.js";
 import { rotaInfraestrutura } from "./telas/infraestrutura.js";
+import { rotaMapa } from "./telas/mapa.js";
 import { rotaAcao } from "./telas/acao.js";
 import type { Executor } from "./acoes/wrapper.js";
 import { escapar } from "./html/base.js";
@@ -37,6 +38,10 @@ export function criarApp(deps: Deps): express.Express {
 
   app.get("/", exigirLogin,
     rotaInicio({ db: deps.db, caches: deps.caches, segredoSessao: deps.segredoSessao }));
+
+  // O Mapa e leitura para qualquer pessoa logada: o recorte por papel acontece
+  // dentro da consulta, entao a casa ve so o que lhe cabe.
+  app.get("/mapa", exigirLogin, rotaMapa({ db: deps.db, caches: deps.caches }));
 
   app.get("/infraestrutura", exigirPapel(deps.db, "admin"),
     rotaInfraestrutura({ db: deps.db, caches: deps.caches, segredoSessao: deps.segredoSessao }));
