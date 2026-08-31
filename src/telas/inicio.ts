@@ -47,7 +47,7 @@ function estadoDoCache(i: { dado: unknown; desatualizado: boolean }): "ok" | "ve
 
 const DIAS = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
 
-function nomeDoDia(iso: string, hoje = new Date()): string {
+export function nomeDoDia(iso: string, hoje = new Date()): string {
   const [a, m, d] = iso.split("-").map(Number);
   if (!a || !m || !d) return iso;
   const data = new Date(a, m - 1, d);

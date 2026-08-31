@@ -7,7 +7,7 @@ import { criarApp } from "../src/app.js";
 import { Cache } from "../src/cache.js";
 import { bom, ruim } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
-import { duracao } from "../src/telas/inicio.js";
+import { duracao, nomeDoDia } from "../src/telas/inicio.js";
 import { cachesDeTeste } from "./apoio.js";
 
 const RECURSOS: RecursoPve[] = [
@@ -141,4 +141,14 @@ test("fonte que falha vira cartao vermelho com o motivo, nao pagina quebrada", a
     // As outras fontes continuam mostrando o que sabem.
     assert.match(html, /Quem esta conectado/);
   } finally { s.close(); }
+});
+
+test("o dia da previsao vira nome, e o de hoje diz 'hoje'", () => {
+  // Data fixa: um teste que dependa do dia real passa hoje e quebra amanha.
+  const hoje = new Date(2026, 7, 31); // 31/08/2026, uma segunda
+  assert.equal(nomeDoDia("2026-08-31", hoje), "hoje");
+  assert.equal(nomeDoDia("2026-09-01", hoje), "amanha");
+  assert.equal(nomeDoDia("2026-09-02", hoje), "quarta");
+  // Entrada estranha nao inventa dia: devolve o que recebeu.
+  assert.equal(nomeDoDia("nao-e-data", hoje), "nao-e-data");
 });
