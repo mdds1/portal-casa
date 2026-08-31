@@ -70,3 +70,26 @@ test("a recusa sempre explica o motivo", () => {
   assert.equal(d.permitido, false);
   if (!d.permitido) assert.ok(d.motivo.length > 0, "motivo vazio nao ajuda ninguem");
 });
+
+test("maquina com papel_minimo que nao existe em papeis e recusada, nem para admin", () => {
+  const db = banco();
+  // Simula um papel removido depois de ja atribuido a uma maquina (inventario
+  // inconsistente): desliga a FK so para forcar o estado, como aconteceria
+  // com dado corrompido ou uma migracao incompleta.
+  db.pragma("foreign_keys = OFF");
+  db.prepare(
+    "INSERT INTO maquinas (tipo,vmid,nome,descricao,ip,onboot,papel_minimo,acionavel) VALUES ('ct',777,'fantasma','papel inexistente',NULL,0,'papel-removido',1)"
+  ).run();
+  db.pragma("foreign_keys = ON");
+  const d = podeAgir(db, "admin", { tipo: "maquina", vmid: 777, classe: "ct" }, "start");
+  assert.equal(d.permitido, false, "inventario inconsistente deve recusar, nao liberar");
+});
+
+test("sem a linha admin em papeis, ninguem desliga o host", () => {
+  const db = banco();
+  db.pragma("foreign_keys = OFF");
+  db.prepare("DELETE FROM papeis WHERE nome = 'admin'").run();
+  db.pragma("foreign_keys = ON");
+  const d = podeAgir(db, "casa", { tipo: "host" }, "shutdown");
+  assert.equal(d.permitido, false, "sem papel admin no inventario, o host fica travado, nao liberado");
+});
