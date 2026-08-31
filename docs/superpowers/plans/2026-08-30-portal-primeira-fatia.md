@@ -1517,13 +1517,23 @@ export class Cache<T> {
   }
 
   private async atualizar(): Promise<void> {
-    const r = await this.buscar();
-    this.buscadoEm = this.agora();
-    if (r.ok) {
-      this.ultimoBom = { dado: r.dado, em: r.em };
-      this.ultimoErro = null;
-    } else {
-      this.ultimoErro = r.erro;
+    // O try/catch nao e paranoia: este cache existe para a pagina nao cair. Se
+    // uma fonte lancar em vez de devolver Resultado, a excecao subiria por
+    // emVoo ate a rota. Confiar no contrato alheio anula o proposito da camada.
+    try {
+      const r = await this.buscar();
+      this.buscadoEm = this.agora();
+      if (r.ok) {
+        this.ultimoBom = { dado: r.dado, em: r.em };
+        this.ultimoErro = null;
+      } else {
+        this.ultimoErro = r.erro;
+      }
+    } catch (erro) {
+      // buscadoEm tambem aqui: sem isso uma fonte que lanca faria o cache
+      // tentar de novo a cada requisicao, ignorando a validade.
+      this.buscadoEm = this.agora();
+      this.ultimoErro = erro instanceof Error ? erro.message : String(erro);
     }
   }
 }
