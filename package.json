@@ -3,12 +3,8 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tsx --test test/*.test.ts"
   },
   "keywords": [],
   "author": "",
@@ -20,7 +16,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/express": "^5.0.6",
-    "@types/node": "^26.4.0",
+    "@types/node": "^20",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }
