@@ -763,6 +763,11 @@ export function verificarAssinatura(assinado: string, segredo: string): string |
   const valor = assinado.slice(0, corte);
   const mac = assinado.slice(corte + 1);
   const esperado = createHmac("sha256", segredo).update(valor).digest("hex");
+  // Buffer.from(x, "hex") ignora silenciosamente lixo no fim de uma string
+  // hex invalida (para no primeiro byte que nao forma par valido). Sem esta
+  // checagem de tamanho, "assinatura-valida" + "x" decodifica pro MESMO
+  // buffer da assinatura original e passaria no timingSafeEqual.
+  if (mac.length !== esperado.length) return null;
   const a = Buffer.from(mac, "hex");
   const b = Buffer.from(esperado, "hex");
   if (a.length !== b.length) return null;
