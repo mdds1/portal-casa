@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS maquinas (
   descricao    TEXT NOT NULL,
   ip           TEXT,
   onboot       INTEGER NOT NULL DEFAULT 0,
+  -- 0 = o portal nao oferece botao para esta maquina. O padrao e o valor
+  -- seguro: quem nao foi marcado explicitamente nao pode ser desligado.
+  acionavel    INTEGER NOT NULL DEFAULT 0,
   papel_minimo TEXT NOT NULL REFERENCES papeis(nome)
 );
 

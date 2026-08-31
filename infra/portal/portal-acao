@@ -1,0 +1,91 @@
+#!/bin/sh
+# Acoes do Portal da Casa. Roda no host Proxmox como comando forcado da chave
+# SSH do portal (CT 103) -- ver infra/portal/acoes.md.
+#
+# POR QUE ISTO EXISTE, E NAO A API DE ESCRITA DO PROXMOX: um token de escrita da
+# API pode tudo que o papel permite, e os papeis do Proxmox sao grossos. Aqui a
+# lista e explicita, curta, e legivel por qualquer pessoa em trinta segundos.
+#
+# ESTE ARQUIVO E A ULTIMA BARREIRA. Se o portal for comprometido, o dano possivel
+# e exatamente o que estiver escrito abaixo. Nao acrescente verbo sem pensar
+# nisso.
+#
+# Deliberadamente FORA da lista: o CT 103 (o portal se mataria), a VM 111 (Home
+# Assistant, derruba a automacao) e a VM 110 (a bancada).
+set -eu
+
+ORIG=${SSH_ORIGINAL_COMMAND:-}
+set -- $ORIG
+[ $# -ge 2 ] || { echo "invalido"; exit 2; }
+
+TIPO=$1
+VERBO=$2
+ID=${3:-}
+
+# Desligar o Proxmox inteiro. E de proposito: serve para quando o Matheus esta
+# fora e percebe que esqueceu a maquina ligada. Derruba tudo junto.
+if [ "$TIPO" = "host" ]; then
+  [ "$VERBO" = "shutdown" ] || { echo "no host, so shutdown"; exit 2; }
+  # Responde ANTES de desligar: sem o sleep, a conexao SSH morre junto com a
+  # maquina e o portal mostra erro numa acao que na verdade deu certo.
+  nohup sh -c "sleep 3; /sbin/shutdown -h now" >/dev/null 2>&1 &
+  echo "agendado"
+  exit 0
+fi
+
+case "$TIPO:$ID" in
+  vm:120|vm:301|ct:100|ct:102|ct:104|ct:201) ;;
+  *) echo "alvo recusado"; exit 3 ;;
+esac
+
+case "$TIPO" in
+  vm) FERRAMENTA=qm ;;
+  ct) FERRAMENTA=pct ;;
+  *)  echo "tipo invalido"; exit 2 ;;
+esac
+
+# Quanto tempo esperar o guest sair sozinho. Os padroes do Proxmox (60 s no
+# pct, 180 s no qm) sao MAIORES que o limite do SSH do portal (20 s,
+# src/acoes/wrapper.ts): sem este --timeout o portal mata a conexao antes de
+# saber o que aconteceu e grava ok=0 numa acao que talvez tenha dado certo.
+# Com ele, o comando devolve um codigo de saida de verdade dentro da janela.
+# Tem que continuar CONFORTAVELMENTE menor que o limite do SSH.
+LIMITE=12
+
+# --forceStop 0 no pct e deliberado: o padrao (1) mata o container quando o
+# tempo acaba, e ai o portal grava "ok" para o que foi, na pratica, um puxao de
+# tomada. Preferimos falhar e dizer a verdade -- quem quer forcar decide isso
+# olhando, nao por omissao.
+executar() {
+  # RC tem que ser capturado no proprio "||": depois de um if, $? e o status do
+  # if, que e sempre 0, e a falha voltaria como "codigo 0".
+  RC=0
+  $FERRAMENTA "$@" >/dev/null 2>&1 || RC=$?
+  if [ "$RC" -eq 0 ]; then
+    return 0
+  fi
+  # Nada de "|| true": engolir a falha faz o acoes_log -- a unica testemunha de
+  # que uma maquina real mudou de estado -- afirmar sucesso numa acao que nao
+  # aconteceu. Um guest que se recusa a desligar sai por aqui.
+  echo "falhou: $FERRAMENTA $* (codigo $RC)"
+  exit 4
+}
+
+case "$VERBO" in
+  start)    executar start "$ID" ;;
+  shutdown)
+    if [ "$FERRAMENTA" = pct ]; then
+      executar shutdown "$ID" --timeout "$LIMITE" --forceStop 0
+    else
+      executar shutdown "$ID" --timeout "$LIMITE"
+    fi
+    ;;
+  reboot)   executar reboot "$ID" --timeout "$LIMITE" ;;
+  *) echo "verbo invalido"; exit 2 ;;
+esac
+
+# So se chegou aqui: a acao deu certo. Devolve o estado depois dela, para o
+# portal nao precisar de uma segunda chamada so para saber o que aconteceu.
+# Este "status" e leitura interna, nao um verbo que o portal possa pedir -- a
+# lista de verbos aceitos e exatamente a de src/acoes/tipos.ts.
+$FERRAMENTA status "$ID" | awk '{print $2}'

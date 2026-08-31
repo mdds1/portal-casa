@@ -5,7 +5,7 @@ import { lerSessao, verificarAssinatura } from "./sessao.js";
 declare global {
   namespace Express {
     interface Request {
-      sessao?: { usuario: number; papel: string };
+      sessao?: { id: string; usuario: number; papel: string };
     }
   }
 }
@@ -38,7 +38,7 @@ export function carregarSessao(db: Database.Database, segredo: string): RequestH
       const id = verificarAssinatura(bruto, segredo);
       if (id) {
         const s = lerSessao(db, id);
-        if (s) req.sessao = s;
+        if (s) req.sessao = { id, ...s };
       }
     }
     prox();

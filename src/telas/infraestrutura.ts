@@ -1,10 +1,47 @@
 import type { RequestHandler } from "express";
 import { listarMaquinas, poderDoPapel } from "../db/inventario.js";
-import { layout, escapar } from "../html/base.js";
+import { layout, escapar, faixaDeAviso } from "../html/base.js";
+import { tokenCsrf } from "../auth/csrf.js";
+import { podeAgir } from "../acoes/permissao.js";
+import { VERBOS, ROTULOS, type Alvo } from "../acoes/tipos.js";
 import type { DepsTela } from "./inicio.js";
+import type Database from "better-sqlite3";
 
 function gb(bytes: number): string {
   return bytes ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : "—";
+}
+
+// Os botoes oferecidos sao exatamente os verbos que podeAgir aprovaria: a
+// tela pergunta a mesma funcao que a rota /acao vai consultar de novo, em
+// vez de reimplementar a regra (e arriscar as duas divergirem).
+export function botoesDaMaquina(
+  db: Database.Database,
+  papel: string,
+  vmid: number,
+  classe: "vm" | "ct",
+  csrf: string
+): string {
+  const alvo: Alvo = { tipo: "maquina", vmid, classe };
+  const oferecidos = VERBOS.filter((v) => podeAgir(db, papel, alvo, v).permitido);
+  if (oferecidos.length === 0) return "";
+  return oferecidos.map((v) => `<form method="post" action="/acao" class="acao">
+<input type="hidden" name="alvo" value="${escapar(vmid)}">
+<input type="hidden" name="verbo" value="${escapar(v)}">
+<input type="hidden" name="csrf" value="${escapar(csrf)}">
+<input type="hidden" name="voltar" value="infra">
+<button>${escapar(ROTULOS[v])}</button>
+</form>`).join("");
+}
+
+export function botaoDoHost(db: Database.Database, papel: string, csrf: string): string {
+  if (!podeAgir(db, papel, { tipo: "host" }, "shutdown").permitido) return "";
+  return `<form method="post" action="/acao" class="acao perigo">
+<input type="hidden" name="alvo" value="host">
+<input type="hidden" name="verbo" value="shutdown">
+<input type="hidden" name="csrf" value="${escapar(csrf)}">
+<input type="hidden" name="voltar" value="infra">
+<button>${escapar(ROTULOS.shutdown)} o host</button>
+</form>`;
 }
 
 export function rotaInfraestrutura(deps: DepsTela): RequestHandler {
@@ -13,6 +50,7 @@ export function rotaInfraestrutura(deps: DepsTela): RequestHandler {
     const maquinas = listarMaquinas(deps.db, papel);
     const poder = poderDoPapel(deps.db, papel);
     const pve = await deps.caches.pve.obter();
+    const csrf = tokenCsrf(req.sessao!.id, deps.segredoSessao);
 
     const linhas = maquinas.map((m) => {
       // O inventario e a fonte da lista; o Proxmox so acrescenta estado. Uma
@@ -26,6 +64,7 @@ export function rotaInfraestrutura(deps: DepsTela): RequestHandler {
 <td>${escapar(m.ip ?? "—")}</td>
 <td>${escapar(vivo ? gb(vivo.memoriaMax) : "—")}</td>
 <td>${m.onboot ? "sim" : "nao"}</td>
+<td><div class="acoes">${botoesDaMaquina(deps.db, papel, m.vmid, m.tipo, csrf)}</div></td>
 </tr>`;
     }).join("");
 
@@ -33,16 +72,19 @@ export function rotaInfraestrutura(deps: DepsTela): RequestHandler {
       ? `<p class="nota">Estado desatualizado${pve.em ? `, de ${escapar(pve.em.toLocaleTimeString("pt-BR"))}` : ""}: ${escapar(pve.erro)}</p>`
       : "";
 
+    const host = botaoDoHost(deps.db, papel, csrf);
+
     res.type("html").send(layout({
       titulo: "Infraestrutura",
       poder,
       atual: "/infraestrutura",
-      corpoHtml: `<h1>Infraestrutura</h1>${aviso}
+      corpoHtml: `<h1>Infraestrutura</h1>${faixaDeAviso(req.query.acao, req.query.alvo)}${aviso}
 <div style="overflow-x:auto">
 <table>
-<thead><tr><th>ID</th><th>Maquina</th><th>Estado</th><th>IP</th><th>Memoria</th><th>Volta sozinha</th></tr></thead>
+<thead><tr><th>ID</th><th>Maquina</th><th>Estado</th><th>IP</th><th>Memoria</th><th>Volta sozinha</th><th>Acoes</th></tr></thead>
 <tbody>${linhas}</tbody>
-</table></div>`,
+</table></div>
+${host ? `<div class="acoes">${host}</div>` : ""}`,
     }));
   };
 }

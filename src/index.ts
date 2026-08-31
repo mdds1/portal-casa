@@ -3,9 +3,15 @@ import { abrirBanco } from "./db/conexao.js";
 import { criarApp } from "./app.js";
 import { Cache } from "./cache.js";
 import { buscarRecursos } from "./fontes/proxmox.js";
+import { executorSsh } from "./acoes/wrapper.js";
 
 const config = lerConfig(process.env);
 const db = abrirBanco(config.caminhoBanco);
+
+const exec = executorSsh(
+  process.env.PORTAL_CHAVE_ACAO ?? "/etc/portal/acao_key",
+  process.env.PORTAL_HOST_ACAO ?? "root@192.168.15.200"
+);
 
 // A fonte do Home Assistant (fontes/homeassistant.ts) continua correta e
 // testada, mas nenhuma tela desta fatia consome estado dela -- so montar o
@@ -16,6 +22,6 @@ const caches = {
   pve: new Cache(() => buscarRecursos(config.pveUrl, config.pveToken)),
 };
 
-criarApp({ db, segredoSessao: config.segredoSessao, caches }).listen(config.porta, () => {
+criarApp({ db, segredoSessao: config.segredoSessao, caches, exec }).listen(config.porta, () => {
   console.log(`portal escutando em ${config.porta}`);
 });

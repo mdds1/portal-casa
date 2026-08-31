@@ -12,6 +12,7 @@ test("GET /saude responde ok", async () => {
   const app = criarApp({
     db: new Database(":memory:"),
     segredoSessao: "teste",
+    exec: async () => bom("running"),
     caches: {
       pve: new Cache(async () => bom([])),
     },
@@ -40,6 +41,7 @@ test("rota inexistente devolve 404 com pagina curta, nao o handler padrao do Exp
   const app = criarApp({
     db: new Database(":memory:"),
     segredoSessao: "teste",
+    exec: async () => bom("running"),
     caches: { pve: new Cache(async () => bom([])) },
   });
   const servidor = app.listen(0);
@@ -62,6 +64,7 @@ test("excecao fora das fontes externas cai no handler de erro, sem stack na resp
   const app = criarApp({
     db,
     segredoSessao: "teste",
+    exec: async () => bom("running"),
     caches: { pve: new Cache(async () => bom([])) },
   });
   const servidor = app.listen(0);

@@ -43,6 +43,7 @@ async function comServidor(fn: (base: string, db: Database.Database) => Promise<
   const servidor = criarApp({
     db,
     segredoSessao: "teste",
+    exec: async () => bom("running"),
     caches: {
       pve: new Cache(async () => bom([])),
     },

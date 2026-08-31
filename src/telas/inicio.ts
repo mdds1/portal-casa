@@ -2,13 +2,31 @@ import type { RequestHandler } from "express";
 import type Database from "better-sqlite3";
 import type { Cache } from "../cache.js";
 import type { RecursoPve } from "../fontes/proxmox.js";
-import { listarServicos, poderDoPapel } from "../db/inventario.js";
+import { listarMaquinas, listarServicos, poderDoPapel } from "../db/inventario.js";
 import { checarPorta } from "../fontes/porta.js";
-import { layout, escapar } from "../html/base.js";
+import { layout, escapar, faixaDeAviso } from "../html/base.js";
 import { cartao, linha } from "../html/cartao.js";
+import { tokenCsrf } from "../auth/csrf.js";
+import { VERBOS, ROTULOS } from "../acoes/tipos.js";
 
 export type Caches = { pve: Cache<RecursoPve[]> };
-export type DepsTela = { db: Database.Database; caches: Caches };
+export type DepsTela = { db: Database.Database; caches: Caches; segredoSessao: string };
+
+// So conveniencia: o botao some quando a maquina nao e acionavel, mas o
+// servidor confere tudo de novo em /acao — esconder o botao nunca e a
+// barreira real.
+function botoesDeAcao(vmid: number, csrf: string, voltar: string): string {
+  const botoes = VERBOS
+    .map((v) => `<form method="post" action="/acao" class="acao">
+<input type="hidden" name="alvo" value="${escapar(vmid)}">
+<input type="hidden" name="verbo" value="${escapar(v)}">
+<input type="hidden" name="csrf" value="${escapar(csrf)}">
+<input type="hidden" name="voltar" value="${escapar(voltar)}">
+<button>${escapar(ROTULOS[v])}</button>
+</form>`)
+    .join("");
+  return `<div class="acoes">${botoes}</div>`;
+}
 
 // Aceita so http/https: um esquema como "javascript:" nao tem aspas nem
 // sinais de menor, entao atravessa o escapar() intacto e ainda executa ao
@@ -29,8 +47,10 @@ export function rotaInicio(deps: DepsTela): RequestHandler {
   return async (req, res) => {
     const papel = req.sessao!.papel;
     const servicos = listarServicos(deps.db, papel);
+    const maquinas = listarMaquinas(deps.db, papel);
     const poder = poderDoPapel(deps.db, papel);
     const pve = await deps.caches.pve.obter();
+    const csrf = tokenCsrf(req.sessao!.id, deps.segredoSessao);
 
     // As checagens de porta correm juntas: em serie, oito servicos com dois
     // segundos de limite cada dariam dezesseis segundos de pagina em branco.
@@ -53,7 +73,9 @@ export function rotaInicio(deps: DepsTela): RequestHandler {
         maquina ? linha("Maquina", `${maquina.nome} (${maquina.estado})`) : "",
         s.url ? linkServico(s.url) : "",
       ].filter(Boolean);
-      return cartao({ titulo: s.nome, estado, linhasHtml, nota: s.descricao });
+      const m = maquinas.find((x) => x.vmid === s.maquina_vmid);
+      const acoes = m && m.acionavel ? botoesDeAcao(m.vmid, csrf, "inicio") : "";
+      return cartao({ titulo: s.nome, estado, linhasHtml, nota: s.descricao }) + acoes;
     });
 
     const aviso = pve.desatualizado
@@ -72,7 +94,7 @@ export function rotaInicio(deps: DepsTela): RequestHandler {
         titulo: "Inicio",
         poder,
         atual: "/",
-        corpoHtml: `<h1>Inicio</h1><div class="grade">${aviso}${cartoes.join("")}</div>`,
+        corpoHtml: `<h1>Inicio</h1>${faixaDeAviso(req.query.acao, req.query.alvo)}<div class="grade">${aviso}${cartoes.join("")}</div>`,
       })
     );
   };
