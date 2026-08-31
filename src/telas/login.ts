@@ -4,6 +4,7 @@ import type Database from "better-sqlite3";
 import { conferirSenha, gerarHash } from "../auth/senha.js";
 import { abrirSessao, assinar, fecharSessao, verificarAssinatura } from "../auth/sessao.js";
 import { COOKIE } from "../auth/middleware.js";
+import { ESTILO } from "../html/base.js";
 
 // Hash-isca fixo: quando o login nao existe, roda-se o scrypt contra ele mesmo
 // assim, para que o tempo de resposta seja igual ao caminho de "usuario existe,
@@ -16,16 +17,19 @@ export function rotasLogin(db: Database.Database, segredo: string): Router {
 
   r.get("/entrar", (req, res) => {
     const erro = req.query.erro ? "<p class='erro'>Login ou senha invalidos.</p>" : "";
-    res.type("html").send(`<!doctype html><meta charset="utf-8">
+    res.type("html").send(`<!doctype html><html lang="pt-BR"><meta charset="utf-8">
 <title>Entrar — Portal da Casa</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${ESTILO}</style>
+<body class="entrada">
 <form method="post" action="/entrar">
   <h1>Portal da Casa</h1>
   ${erro}
   <label>Login <input name="login" autocomplete="username" autofocus></label>
   <label>Senha <input name="senha" type="password" autocomplete="current-password"></label>
   <button>Entrar</button>
-</form>`);
+</form>
+</body></html>`);
   });
 
   r.post("/entrar", (req, res) => {

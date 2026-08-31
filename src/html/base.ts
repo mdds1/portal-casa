@@ -10,7 +10,7 @@ export function escapar(v: unknown): string {
     .replaceAll("'", "&#39;");
 }
 
-const ESTILO = `
+export const ESTILO = `
 :root { color-scheme: light dark; --fundo:#f6f6f7; --cartao:#fff; --borda:#e2e2e5; --texto:#1a1a1c; --fraco:#6b6b70; }
 @media (prefers-color-scheme: dark) {
   :root { --fundo:#151517; --cartao:#1e1e21; --borda:#2e2e33; --texto:#ececee; --fraco:#9a9aa0; }
@@ -37,6 +37,22 @@ form.sair { margin-left:auto; }
 button { font:inherit; padding:.35rem .7rem; border-radius:6px;
   border:1px solid var(--borda); background:var(--fundo); color:inherit; cursor:pointer; }
 @media (max-width:520px) { .grade { grid-template-columns:1fr; } }
+
+/* Tela de login: cartao unico e centrado. Ela nao usa o layout() porque nao
+   tem menu nem botao de sair — mas usa este mesmo bloco de estilo, senao
+   aparece como HTML cru, que foi como ela nasceu. */
+.entrada { min-height:100vh; display:grid; place-items:center; padding:1rem; }
+.entrada form { background:var(--cartao); border:1px solid var(--borda);
+  border-radius:10px; padding:1.5rem; width:100%; max-width:320px;
+  display:flex; flex-direction:column; gap:.75rem; }
+.entrada h1 { margin:0 0 .25rem; font-size:1.15rem; }
+.entrada label { display:flex; flex-direction:column; gap:.25rem;
+  font-size:.85rem; color:var(--fraco); }
+.entrada input { font:inherit; color:inherit; padding:.5rem .6rem;
+  border:1px solid var(--borda); border-radius:6px; background:var(--fundo); }
+.entrada button { margin-top:.25rem; padding:.55rem; }
+.erro { margin:0; padding:.5rem .6rem; border-radius:6px; font-size:.85rem;
+  background:#d13b3b22; border:1px solid #d13b3b66; }
 table { border-collapse:collapse; width:100%; background:var(--cartao);
   border:1px solid var(--borda); border-radius:10px; }
 th,td { text-align:left; padding:.5rem .65rem; border-bottom:1px solid var(--borda); }
