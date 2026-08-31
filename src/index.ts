@@ -4,6 +4,6 @@ import { criarApp } from "./app.js";
 
 const config = lerConfig(process.env);
 const db = abrirBanco(config.caminhoBanco);
-criarApp({ db }).listen(config.porta, () => {
+criarApp({ db, segredoSessao: config.segredoSessao }).listen(config.porta, () => {
   console.log(`portal escutando em ${config.porta}`);
 });

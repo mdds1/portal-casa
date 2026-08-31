@@ -4,7 +4,7 @@ import Database from "better-sqlite3";
 import { criarApp } from "../src/app.js";
 
 test("GET /saude responde ok", async () => {
-  const app = criarApp({ db: new Database(":memory:") });
+  const app = criarApp({ db: new Database(":memory:"), segredoSessao: "teste" });
   const servidor = app.listen(0);
   const porta = (servidor.address() as { port: number }).port;
   try {
