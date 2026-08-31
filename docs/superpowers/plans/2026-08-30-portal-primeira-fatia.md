@@ -76,7 +76,7 @@ falham de formas diferentes e sao testadas com respostas gravadas distintas.
 
 ---
 
-### Tarefa 1: Esqueleto do projeto e servidor que responde
+### Task 1: Esqueleto do projeto e servidor que responde
 
 **Arquivos:**
 - Criar: `package.json`, `tsconfig.json`, `.gitignore`, `src/index.ts`,
@@ -101,7 +101,7 @@ npm install -D typescript @types/node @types/express @types/better-sqlite3 tsx
 ```
 
 Acrescente `"type": "module"` ao `package.json`. Sem isso os imports com
-extensao `.js` e o `import.meta.url` da Tarefa 2 nao funcionam.
+extensao `.js` e o `import.meta.url` da Task 2 nao funcionam.
 
 - [ ] **Passo 2: `tsconfig.json`**
 
@@ -246,8 +246,8 @@ criarApp({ db }).listen(config.porta, () => {
 });
 ```
 
-Este arquivo referencia `abrirBanco`, criado na Tarefa 2. Ate la ele nao compila,
-e isso e esperado — o teste da Tarefa 1 exercita `criarApp`, nao o arranque.
+Este arquivo referencia `abrirBanco`, criado na Task 2. Ate la ele nao compila,
+e isso e esperado — o teste da Task 1 exercita `criarApp`, nao o arranque.
 
 - [ ] **Passo 9: rodar e confirmar que passa**
 
@@ -266,14 +266,14 @@ git commit -m "portal: esqueleto do projeto e rota de saude"
 
 ---
 
-### Tarefa 2: Esquema do inventario e acesso ao banco
+### Task 2: Esquema do inventario e acesso ao banco
 
 **Arquivos:**
 - Criar: `src/db/esquema.sql`, `src/db/conexao.ts`, `src/db/inventario.ts`
 - Teste: `test/inventario.test.ts`
 
 **Interfaces:**
-- Consome: nada da Tarefa 1 alem do projeto montado.
+- Consome: nada da Task 1 alem do projeto montado.
 - Produz: `abrirBanco(caminho: string): Database.Database`;
   `type Maquina = { id: number; tipo: "vm" | "ct"; vmid: number; nome: string;
   descricao: string; ip: string | null; onboot: 0 | 1; papel_minimo: string }`;
@@ -507,14 +507,14 @@ git commit -m "portal: esquema do inventario e consultas com recorte por papel"
 
 ---
 
-### Tarefa 3: Semente com a casa real
+### Task 3: Semente com a casa real
 
 **Arquivos:**
 - Criar: `src/db/semente.ts`, `scripts/semear.ts`
 - Teste: `test/semente.test.ts`
 
 **Interfaces:**
-- Consome: `abrirBanco`, `listarMaquinas`, `listarServicos` da Tarefa 2.
+- Consome: `abrirBanco`, `listarMaquinas`, `listarServicos` da Task 2.
 - Produz: `semear(db: Database.Database): void`, idempotente.
 
 - [ ] **Passo 1: escrever o teste que falha**
@@ -655,7 +655,7 @@ git commit -m "portal: inventario semeado com o parque real"
 
 ---
 
-### Tarefa 4: Autenticacao, sessao e papeis
+### Task 4: Autenticacao, sessao e papeis
 
 **Arquivos:**
 - Criar: `src/auth/senha.ts`, `src/auth/sessao.ts`, `src/auth/middleware.ts`,
@@ -664,7 +664,7 @@ git commit -m "portal: inventario semeado com o parque real"
 - Teste: `test/auth.test.ts`
 
 **Interfaces:**
-- Consome: `abrirBanco` e os tipos da Tarefa 2.
+- Consome: `abrirBanco` e os tipos da Task 2.
 - Produz: `gerarHash(senha: string): string`;
   `conferirSenha(senha: string, guardado: string): boolean`;
   `abrirSessao(db, usuarioId: number): string`;
@@ -1000,9 +1000,9 @@ export function rotasLogin(db: Database.Database, segredo: string): Router {
 }
 ```
 
-Nota: `escapar` so ganha corpo na Tarefa 7. Como esta tarefa ja precisa dele,
+Nota: `escapar` so ganha corpo na Task 7. Como esta tarefa ja precisa dele,
 crie agora `src/html/base.ts` contendo **apenas** a funcao `escapar` — o codigo
-exato esta no Passo 3 da Tarefa 7 — e deixe o resto do arquivo para la.
+exato esta no Passo 3 da Task 7 — e deixe o resto do arquivo para la.
 
 - [ ] **Passo 9: modificar `src/app.ts`**
 
@@ -1039,7 +1039,7 @@ app.get("/infraestrutura", exigirPapel(deps.db, "admin"), (_req, res) => {
 });
 ```
 
-A Tarefa 9 substitui o corpo dela.
+A Task 9 substitui o corpo dela.
 
 - [ ] **Passo 10: `scripts/criar-usuario.ts`**
 
@@ -1083,7 +1083,7 @@ git commit -m "portal: login, sessao assinada e recorte por papel no servidor"
 
 ---
 
-### Tarefa 5: As tres fontes de leitura
+### Task 5: As tres fontes de leitura
 
 **Arquivos:**
 - Criar: `src/fontes/tipos.ts`, `src/fontes/proxmox.ts`,
@@ -1387,14 +1387,14 @@ git commit -m "portal: leitura do Proxmox, do Home Assistant e de portas TCP"
 
 ---
 
-### Tarefa 6: Cache de 15 segundos que preserva o ultimo valor bom
+### Task 6: Cache de 15 segundos que preserva o ultimo valor bom
 
 **Arquivos:**
 - Criar: `src/cache.ts`
 - Teste: `test/cache.test.ts`
 
 **Interfaces:**
-- Consome: `Resultado<T>` da Tarefa 5.
+- Consome: `Resultado<T>` da Task 5.
 - Produz: `class Cache<T>` com
   `constructor(buscar: () => Promise<Resultado<T>>, msValidade = 15000, agora: () => number = Date.now)`,
   `obter(): Promise<Instantaneo<T>>` e `parar(): void`; e
@@ -1541,7 +1541,7 @@ git commit -m "portal: cache de 15s que degrada mostrando o ultimo valor bom"
 
 ---
 
-### Tarefa 7: Renderizacao de HTML com escape
+### Task 7: Renderizacao de HTML com escape
 
 **Arquivos:**
 - Criar/completar: `src/html/base.ts`, `src/html/cartao.ts`
@@ -1711,7 +1711,7 @@ git commit -m "portal: layout e cartoes, com escape em toda saida"
 
 ---
 
-### Tarefa 8: Tela Inicio
+### Task 8: Tela Inicio
 
 **Arquivos:**
 - Criar: `src/telas/inicio.ts`
@@ -1719,9 +1719,9 @@ git commit -m "portal: layout e cartoes, com escape em toda saida"
 - Teste: `test/inicio.test.ts`
 
 **Interfaces:**
-- Consome: `Cache`/`Instantaneo` (Tarefa 6), `listarServicos` (Tarefa 2),
-  `checarPorta` (Tarefa 5), `layout`/`cartao`/`linha` (Tarefa 7),
-  `exigirLogin` (Tarefa 4).
+- Consome: `Cache`/`Instantaneo` (Task 6), `listarServicos` (Task 2),
+  `checarPorta` (Task 5), `layout`/`cartao`/`linha` (Task 7),
+  `exigirLogin` (Task 4).
 - Produz: `rotaInicio(deps: DepsTela): RequestHandler` e
   `type DepsTela = { db: Database.Database; caches: Caches }`,
   `type Caches = { pve: Cache<RecursoPve[]>; ha: Cache<EstadoHa[]> }`.
@@ -1946,16 +1946,16 @@ git commit -m "portal: tela Inicio, com recorte por papel e degradacao por carta
 
 ---
 
-### Tarefa 9: Tela Infraestrutura
+### Task 9: Tela Infraestrutura
 
 **Arquivos:**
 - Criar: `src/telas/infraestrutura.ts`
-- Modificar: `src/app.ts` (trocar a rota provisoria da Tarefa 4)
+- Modificar: `src/app.ts` (trocar a rota provisoria da Task 4)
 - Teste: `test/infraestrutura.test.ts`
 
 **Interfaces:**
-- Consome: `DepsTela` e `Caches` (Tarefa 8), `listarMaquinas` (Tarefa 2),
-  `exigirPapel` (Tarefa 4).
+- Consome: `DepsTela` e `Caches` (Task 8), `listarMaquinas` (Task 2),
+  `exigirPapel` (Task 4).
 - Produz: `rotaInfraestrutura(deps: DepsTela): RequestHandler`.
 
 - [ ] **Passo 1: escrever o teste que falha**
@@ -2093,7 +2093,7 @@ export function rotaInfraestrutura(deps: DepsTela): RequestHandler {
 
 - [ ] **Passo 4: modificar `src/app.ts`**
 
-Troque a rota provisoria da Tarefa 4 por:
+Troque a rota provisoria da Task 4 por:
 
 ```typescript
 import { rotaInfraestrutura } from "./telas/infraestrutura.js";
@@ -2119,7 +2119,7 @@ small { color:var(--fraco); }
 npx tsx --test test/
 ```
 
-Esperado: todos passando, e o teste de 403 da Tarefa 4 continua verde.
+Esperado: todos passando, e o teste de 403 da Task 4 continua verde.
 
 - [ ] **Passo 6: comitar**
 
@@ -2130,7 +2130,7 @@ git commit -m "portal: tela Infraestrutura, com o inventario mandando na lista"
 
 ---
 
-### Tarefa 10: Implantacao no CT 103
+### Task 10: Implantacao no CT 103
 
 **Arquivos:**
 - Criar: `infra/portal/implantacao.md`, `infra/portal/portal.service`,
