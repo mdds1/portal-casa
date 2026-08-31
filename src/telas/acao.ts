@@ -1,7 +1,7 @@
 import type { RequestHandler } from "express";
 import type Database from "better-sqlite3";
 import { podeAgir } from "../acoes/permissao.js";
-import { ehDestrutivo, type Alvo, type Verbo } from "../acoes/tipos.js";
+import { ehDestrutivo, ROTULOS, type Alvo, type Verbo } from "../acoes/tipos.js";
 import { acionar, type Executor } from "../acoes/wrapper.js";
 import { registrar } from "../acoes/registro.js";
 import { conferirCsrf } from "../auth/csrf.js";
@@ -29,12 +29,6 @@ function loginDoUsuario(db: Database.Database, id: number): string {
     { login: string } | undefined;
   return u?.login ?? "?";
 }
-
-const ROTULOS: Record<Verbo, string> = {
-  start: "Ligar",
-  shutdown: "Desligar",
-  reboot: "Reiniciar",
-};
 
 function nomeDaMaquina(db: Database.Database, vmid: number): string | null {
   const m = db.prepare("SELECT nome FROM maquinas WHERE vmid = ?").get(vmid) as

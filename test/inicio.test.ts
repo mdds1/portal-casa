@@ -74,3 +74,14 @@ test("Proxmox fora do ar degrada o cartao, nao a pagina", async () => {
     assert.ok(/desatualizado|indispon/i.test(html), "e precisa dizer que esta ruim");
   } finally { s.close(); }
 });
+
+test("a Marcella ve botao do Jellyfin e nenhum do que nao e dela", async () => {
+  const { base, s, entrar } = await servidor();
+  try {
+    const c = await entrar("marcella", "s2");
+    const html = await (await fetch(base + "/", { headers: { cookie: c } })).text();
+    assert.match(html, /name="alvo" value="201"/, "o Jellyfin e dela");
+    assert.doesNotMatch(html, /name="alvo" value="301"/, "o servidor de jogo nao");
+    assert.doesNotMatch(html, /name="alvo" value="host"/, "e o host muito menos");
+  } finally { s.close(); }
+});

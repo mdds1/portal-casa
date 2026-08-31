@@ -7,7 +7,7 @@ import { checarPorta } from "../fontes/porta.js";
 import { layout, escapar } from "../html/base.js";
 import { cartao, linha } from "../html/cartao.js";
 import { tokenCsrf } from "../auth/csrf.js";
-import { VERBOS, type Verbo } from "../acoes/tipos.js";
+import { VERBOS, ROTULOS } from "../acoes/tipos.js";
 
 export type Caches = { pve: Cache<RecursoPve[]> };
 export type DepsTela = { db: Database.Database; caches: Caches; segredoSessao: string };
@@ -15,11 +15,9 @@ export type DepsTela = { db: Database.Database; caches: Caches; segredoSessao: s
 // So conveniencia: o botao some quando a maquina nao e acionavel, mas o
 // servidor confere tudo de novo em /acao — esconder o botao nunca e a
 // barreira real.
-const ROTULOS: Record<Verbo, string> = { start: "Ligar", shutdown: "Desligar", reboot: "Reiniciar" };
-
 function botoesDeAcao(vmid: number, csrf: string, voltar: string): string {
   const botoes = VERBOS
-    .map((v) => `<form method="post" action="/acao">
+    .map((v) => `<form method="post" action="/acao" class="acao">
 <input type="hidden" name="alvo" value="${escapar(vmid)}">
 <input type="hidden" name="verbo" value="${escapar(v)}">
 <input type="hidden" name="csrf" value="${escapar(csrf)}">

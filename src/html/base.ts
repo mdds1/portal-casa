@@ -37,6 +37,10 @@ form.sair { margin-left:auto; }
 button { font:inherit; padding:.35rem .7rem; border-radius:6px;
   border:1px solid var(--borda); background:var(--fundo); color:inherit; cursor:pointer; }
 @media (max-width:520px) { .grade { grid-template-columns:1fr; } }
+.acoes { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem; }
+.acao { display:inline; }
+.acao button { padding:.25rem .5rem; font-size:.8rem; }
+.perigo button { border-color:#d13b3b66; color:#d13b3b; }
 
 /* Tela de login: cartao unico e centrado. Ela nao usa o layout() porque nao
    tem menu nem botao de sair — mas usa este mesmo bloco de estilo, senao

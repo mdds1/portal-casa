@@ -77,3 +77,34 @@ test("mostra quais maquinas voltam sozinhas depois de queda de luz", async () =>
     assert.ok(/<td>nao<\/td>/.test(linhaStarloco), "starloco nao volta sozinha (onboot=0)");
   } finally { s.close(); }
 });
+
+test("o admin ve botoes so nas maquinas acionaveis", async () => {
+  const { base, s, cookie } = await comAdmin();
+  try {
+    const html = await (await fetch(base + "/infraestrutura", { headers: { cookie } })).text();
+    // O FloripaOT e acionavel: tem formulario com o vmid dele.
+    assert.match(html, /name="alvo" value="301"/);
+    // O portal e o Home Assistant nao sao, nunca.
+    assert.doesNotMatch(html, /name="alvo" value="103"/);
+    assert.doesNotMatch(html, /name="alvo" value="111"/);
+    assert.doesNotMatch(html, /name="alvo" value="110"/);
+  } finally { s.close(); }
+});
+
+test("todo formulario de acao leva token de csrf", async () => {
+  const { base, s, cookie } = await comAdmin();
+  try {
+    const html = await (await fetch(base + "/infraestrutura", { headers: { cookie } })).text();
+    const forms = html.match(/<form[^>]*action="\/acao"[\s\S]*?<\/form>/g) ?? [];
+    assert.ok(forms.length > 0, "deveria haver formularios de acao");
+    for (const f of forms) assert.match(f, /name="csrf"/, "formulario sem csrf");
+  } finally { s.close(); }
+});
+
+test("o botao de desligar o host aparece so para o admin", async () => {
+  const { base, s, cookie } = await comAdmin();
+  try {
+    const html = await (await fetch(base + "/infraestrutura", { headers: { cookie } })).text();
+    assert.match(html, /name="alvo" value="host"/);
+  } finally { s.close(); }
+});

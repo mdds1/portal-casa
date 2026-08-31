@@ -18,6 +18,15 @@ export type Decisao =
   | { permitido: true }
   | { permitido: false; motivo: string };
 
+// Rotulos vem de um lugar so: a tela de confirmacao (acao.ts) e os botoes
+// nas telas (inicio.ts, infraestrutura.ts) usavam listas separadas antes
+// desta declaracao, e as duas podiam divergir sem que nada avisasse.
+export const ROTULOS: Record<Verbo, string> = {
+  start: "Ligar",
+  shutdown: "Desligar",
+  reboot: "Reiniciar",
+};
+
 export function ehVerbo(v: string): v is Verbo {
   return (VERBOS as readonly string[]).includes(v);
 }
