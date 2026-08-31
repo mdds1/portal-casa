@@ -2,7 +2,9 @@ import { lerConfig } from "./config.js";
 import { abrirBanco } from "./db/conexao.js";
 import { criarApp } from "./app.js";
 import { Cache } from "./cache.js";
-import { buscarRecursos } from "./fontes/proxmox.js";
+import { buscarNo, buscarRecursos } from "./fontes/proxmox.js";
+import { buscarDispositivos } from "./fontes/tailscale.js";
+import { buscarTempo } from "./fontes/tempo.js";
 import { executorSsh } from "./acoes/wrapper.js";
 
 const config = lerConfig(process.env);
@@ -20,6 +22,11 @@ const exec = executorSsh(
 // quando existir tela que a consuma.
 const caches = {
   pve: new Cache(() => buscarRecursos(config.pveUrl, config.pveToken)),
+  no: new Cache(() => buscarNo(config.pveUrl, config.pveToken)),
+  rede: new Cache(() => buscarDispositivos()),
+  // A previsao muda de hora em hora, nao de 15 em 15 segundos: consultar mais
+  // que isso e gastar rede de graca e abusar de um servico gratuito.
+  tempo: new Cache(() => buscarTempo(), 15 * 60_000),
 };
 
 criarApp({ db, segredoSessao: config.segredoSessao, caches, exec }).listen(config.porta, () => {

@@ -4,10 +4,10 @@ import { abrirBanco } from "../src/db/conexao.js";
 import { semear } from "../src/db/semente.js";
 import { gerarHash } from "../src/auth/senha.js";
 import { criarApp } from "../src/app.js";
-import { Cache } from "../src/cache.js";
 import { bom, ruim } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
 import type { Executor } from "../src/acoes/wrapper.js";
+import { cachesDeTeste } from "./apoio.js";
 
 function montar(exec: Executor) {
   const db = abrirBanco(":memory:");
@@ -18,7 +18,7 @@ function montar(exec: Executor) {
     .run("marcella", "Marcella", gerarHash("s2"), "casa");
   const app = criarApp({
     db, segredoSessao: "teste", exec,
-    caches: { pve: new Cache(async () => bom([] as RecursoPve[])) },
+    caches: cachesDeTeste([] as RecursoPve[]),
   });
   const s = app.listen(0);
   const base = `http://127.0.0.1:${(s.address() as { port: number }).port}`;
@@ -36,9 +36,9 @@ async function entrar(base: string, login: string, senha: string) {
 }
 
 async function csrfDaPagina(base: string, cookie: string): Promise<string> {
-  const html = await (await fetch(base + "/", { headers: { cookie } })).text();
+  const html = await (await fetch(base + "/mapa", { headers: { cookie } })).text();
   const m = html.match(/name="csrf" value="([^"]+)"/);
-  assert.ok(m, "a pagina precisa trazer um token de csrf nos formularios");
+  assert.ok(m, "o Mapa precisa trazer um token de csrf nos formularios");
   return m![1]!;
 }
 
