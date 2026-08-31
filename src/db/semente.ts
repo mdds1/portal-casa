@@ -1,18 +1,19 @@
 import type Database from "better-sqlite3";
 
-type LinhaMaquina = [tipo: "vm" | "ct", vmid: number, nome: string, descricao: string, ip: string | null, onboot: 0 | 1, papel: string];
+type LinhaMaquina = [tipo: "vm" | "ct", vmid: number, nome: string, descricao: string, ip: string | null, onboot: 0 | 1, papel: string, acionavel: 0 | 1];
 
 const MAQUINAS: LinhaMaquina[] = [
-  ["vm", 110, "tfs-server", "Bancada de desenvolvimento", "192.168.15.10", 0, "admin"],
-  ["vm", 111, "home-assistant", "Automacao da casa", "192.168.15.8", 1, "casa"],
-  ["vm", 120, "gamebox-batocera", "Emulador na TV", null, 0, "casa"],
-  ["vm", 301, "floripaot", "Servidor de Tibia e site, producao", "192.168.15.11", 1, "admin"],
-  ["ct", 100, "drive", "Drive de midias por SMB", null, 0, "admin"],
-  ["ct", 101, "Jellyfin", "Jellyfin antigo, privilegiado, a remover", null, 0, "admin"],
-  ["ct", 102, "Docker", "Containers avulsos", null, 0, "admin"],
-  ["ct", 103, "portal", "Porteiro da casa: nginx, tunel e este portal", "192.168.15.14", 1, "admin"],
-  ["ct", 104, "starloco", "Servidor de Dofus Retro", "192.168.15.16", 0, "admin"],
-  ["ct", 201, "jellyfin", "Midia da casa, nao-privilegiado", "192.168.15.15", 0, "casa"],
+  // A bancada, o Home Assistant e o proprio portal NUNCA sao acionaveis.
+  ["vm", 110, "tfs-server", "Bancada de desenvolvimento", "192.168.15.10", 0, "admin", 0],
+  ["vm", 111, "home-assistant", "Automacao da casa", "192.168.15.8", 1, "casa", 0],
+  ["vm", 120, "gamebox-batocera", "Emulador na TV", null, 0, "casa", 1],
+  ["vm", 301, "floripaot", "Servidor de Tibia e site, producao", "192.168.15.11", 1, "admin", 1],
+  ["ct", 100, "drive", "Drive de midias por SMB", null, 0, "admin", 1],
+  ["ct", 101, "Jellyfin", "Jellyfin antigo, privilegiado, a remover", null, 0, "admin", 0],
+  ["ct", 102, "Docker", "Containers avulsos", null, 0, "admin", 1],
+  ["ct", 103, "portal", "Porteiro da casa: nginx, tunel e este portal", "192.168.15.14", 1, "admin", 0],
+  ["ct", 104, "starloco", "Servidor de Dofus Retro", "192.168.15.16", 0, "admin", 1],
+  ["ct", 201, "jellyfin", "Midia da casa, nao-privilegiado", "192.168.15.15", 0, "casa", 1],
 ];
 
 type LinhaServico = [vmid: number, nome: string, descricao: string, porta: number | null, host: string | null, url: string | null, papel: string];
@@ -30,11 +31,12 @@ const SERVICOS: LinhaServico[] = [
 
 export function semear(db: Database.Database): void {
   const m = db.prepare(`
-    INSERT INTO maquinas (tipo,vmid,nome,descricao,ip,onboot,papel_minimo)
-    VALUES (?,?,?,?,?,?,?)
+    INSERT INTO maquinas (tipo,vmid,nome,descricao,ip,onboot,papel_minimo,acionavel)
+    VALUES (?,?,?,?,?,?,?,?)
     ON CONFLICT(vmid) DO UPDATE SET
       tipo=excluded.tipo, nome=excluded.nome, descricao=excluded.descricao,
-      ip=excluded.ip, onboot=excluded.onboot, papel_minimo=excluded.papel_minimo`);
+      ip=excluded.ip, onboot=excluded.onboot, papel_minimo=excluded.papel_minimo,
+      acionavel=excluded.acionavel`);
 
   const s = db.prepare(`
     INSERT INTO servicos (maquina_vmid,nome,descricao,porta,host_checagem,url,papel_minimo)

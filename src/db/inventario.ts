@@ -8,6 +8,7 @@ export type Maquina = {
   descricao: string;
   ip: string | null;
   onboot: 0 | 1;
+  acionavel: 0 | 1;
   papel_minimo: string;
 };
 
