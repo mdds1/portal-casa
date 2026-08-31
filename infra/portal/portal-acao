@@ -1,0 +1,57 @@
+#!/bin/sh
+# Acoes do Portal da Casa. Roda no host Proxmox como comando forcado da chave
+# SSH do portal (CT 103) -- ver infra/portal/acoes.md.
+#
+# POR QUE ISTO EXISTE, E NAO A API DE ESCRITA DO PROXMOX: um token de escrita da
+# API pode tudo que o papel permite, e os papeis do Proxmox sao grossos. Aqui a
+# lista e explicita, curta, e legivel por qualquer pessoa em trinta segundos.
+#
+# ESTE ARQUIVO E A ULTIMA BARREIRA. Se o portal for comprometido, o dano possivel
+# e exatamente o que estiver escrito abaixo. Nao acrescente verbo sem pensar
+# nisso.
+#
+# Deliberadamente FORA da lista: o CT 103 (o portal se mataria), a VM 111 (Home
+# Assistant, derruba a automacao) e a VM 110 (a bancada).
+set -eu
+
+ORIG=${SSH_ORIGINAL_COMMAND:-}
+set -- $ORIG
+[ $# -ge 2 ] || { echo "invalido"; exit 2; }
+
+TIPO=$1
+VERBO=$2
+ID=${3:-}
+
+# Desligar o Proxmox inteiro. E de proposito: serve para quando o Matheus esta
+# fora e percebe que esqueceu a maquina ligada. Derruba tudo junto.
+if [ "$TIPO" = "host" ]; then
+  [ "$VERBO" = "shutdown" ] || { echo "no host, so shutdown"; exit 2; }
+  # Responde ANTES de desligar: sem o sleep, a conexao SSH morre junto com a
+  # maquina e o portal mostra erro numa acao que na verdade deu certo.
+  nohup sh -c "sleep 3; /sbin/shutdown -h now" >/dev/null 2>&1 &
+  echo "agendado"
+  exit 0
+fi
+
+case "$TIPO:$ID" in
+  vm:120|vm:301|ct:100|ct:102|ct:104|ct:201) ;;
+  *) echo "alvo recusado"; exit 3 ;;
+esac
+
+case "$TIPO" in
+  vm) FERRAMENTA=qm ;;
+  ct) FERRAMENTA=pct ;;
+  *)  echo "tipo invalido"; exit 2 ;;
+esac
+
+case "$VERBO" in
+  start)    $FERRAMENTA start "$ID"    >/dev/null 2>&1 || true ;;
+  shutdown) $FERRAMENTA shutdown "$ID" >/dev/null 2>&1 || true ;;
+  reboot)   $FERRAMENTA reboot "$ID"   >/dev/null 2>&1 || true ;;
+  status)   ;;
+  *) echo "verbo invalido"; exit 2 ;;
+esac
+
+# Sempre devolve o estado depois da acao, para o portal nao precisar de uma
+# segunda chamada so para saber o que aconteceu.
+$FERRAMENTA status "$ID" | awk '{print $2}'
