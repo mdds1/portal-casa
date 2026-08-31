@@ -1,0 +1,23 @@
+{
+  "name": "portal-casa",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "test": "tsx --test test/*.test.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^9.6.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}
