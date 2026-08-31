@@ -31,8 +31,8 @@ import Database from "better-sqlite3";
 import { abrirBanco } from "../src/db/conexao.js";
 import { criarApp } from "../src/app.js";
 import { gerarHash as hash } from "../src/auth/senha.js";
-import { Cache } from "../src/cache.js";
 import { bom } from "../src/fontes/tipos.js";
+import { cachesDeTeste } from "./apoio.js";
 
 async function comServidor(fn: (base: string, db: Database.Database) => Promise<void>) {
   const db = abrirBanco(":memory:");
@@ -44,9 +44,7 @@ async function comServidor(fn: (base: string, db: Database.Database) => Promise<
     db,
     segredoSessao: "teste",
     exec: async () => bom("running"),
-    caches: {
-      pve: new Cache(async () => bom([])),
-    },
+    caches: cachesDeTeste([]),
   }).listen(0);
   const porta = (servidor.address() as { port: number }).port;
   try {

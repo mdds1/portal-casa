@@ -2,20 +2,18 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { criarApp } from "../src/app.js";
-import { Cache } from "../src/cache.js";
 import { bom } from "../src/fontes/tipos.js";
 import { abrirBanco } from "../src/db/conexao.js";
 import { semear } from "../src/db/semente.js";
 import { gerarHash } from "../src/auth/senha.js";
+import { cachesDeTeste } from "./apoio.js";
 
 test("GET /saude responde ok", async () => {
   const app = criarApp({
     db: new Database(":memory:"),
     segredoSessao: "teste",
     exec: async () => bom("running"),
-    caches: {
-      pve: new Cache(async () => bom([])),
-    },
+    caches: cachesDeTeste([]),
   });
   const servidor = app.listen(0);
   const porta = (servidor.address() as { port: number }).port;
@@ -42,7 +40,7 @@ test("rota inexistente devolve 404 com pagina curta, nao o handler padrao do Exp
     db: new Database(":memory:"),
     segredoSessao: "teste",
     exec: async () => bom("running"),
-    caches: { pve: new Cache(async () => bom([])) },
+    caches: cachesDeTeste([]),
   });
   const servidor = app.listen(0);
   const porta = (servidor.address() as { port: number }).port;
@@ -65,7 +63,7 @@ test("excecao fora das fontes externas cai no handler de erro, sem stack na resp
     db,
     segredoSessao: "teste",
     exec: async () => bom("running"),
-    caches: { pve: new Cache(async () => bom([])) },
+    caches: cachesDeTeste([]),
   });
   const servidor = app.listen(0);
   const base = `http://127.0.0.1:${(servidor.address() as { port: number }).port}`;

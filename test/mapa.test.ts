@@ -4,14 +4,14 @@ import { abrirBanco } from "../src/db/conexao.js";
 import { semear } from "../src/db/semente.js";
 import { gerarHash } from "../src/auth/senha.js";
 import { criarApp } from "../src/app.js";
-import { Cache } from "../src/cache.js";
 import { bom } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
+import { cachesDeTeste } from "./apoio.js";
 
 const RECURSOS: RecursoPve[] = [
-  { tipo: "lxc", vmid: 102, nome: "Docker", estado: "running", cpu: 0, memoria: 0, memoriaMax: 4e9 },
-  { tipo: "lxc", vmid: 201, nome: "jellyfin", estado: "running", cpu: 0, memoria: 0, memoriaMax: 2e9 },
-  { tipo: "qemu", vmid: 120, nome: "gamebox-batocera", estado: "stopped", cpu: 0, memoria: 0, memoriaMax: 4e9 },
+  { tipo: "lxc", vmid: 102, nome: "Docker", estado: "running", cpu: 0, memoria: 0, memoriaMax: 4e9, uptime: 25200 },
+  { tipo: "lxc", vmid: 201, nome: "jellyfin", estado: "running", cpu: 0, memoria: 0, memoriaMax: 2e9, uptime: 25200 },
+  { tipo: "qemu", vmid: 120, nome: "gamebox-batocera", estado: "stopped", cpu: 0, memoria: 0, memoriaMax: 4e9, uptime: 0 },
 ];
 
 async function servidor() {
@@ -23,7 +23,7 @@ async function servidor() {
   const app = criarApp({
     db, segredoSessao: "teste",
     exec: async () => bom("running"),
-    caches: { pve: new Cache(async () => bom(RECURSOS)) },
+    caches: cachesDeTeste(RECURSOS),
   });
   const s = app.listen(0);
   const base = `http://127.0.0.1:${(s.address() as { port: number }).port}`;

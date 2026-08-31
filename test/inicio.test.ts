@@ -5,31 +5,24 @@ import { semear } from "../src/db/semente.js";
 import { gerarHash } from "../src/auth/senha.js";
 import { criarApp } from "../src/app.js";
 import { Cache } from "../src/cache.js";
-import { bom, ruim, type Resultado } from "../src/fontes/tipos.js";
+import { bom, ruim } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
+import { duracao, nomeDoDia } from "../src/telas/inicio.js";
+import { cachesDeTeste } from "./apoio.js";
 
 const RECURSOS: RecursoPve[] = [
-  { tipo: "qemu", vmid: 301, nome: "floripaot", estado: "running", cpu: 0.02, memoria: 2e9, memoriaMax: 8e9 },
-  { tipo: "lxc", vmid: 201, nome: "jellyfin", estado: "stopped", cpu: 0, memoria: 0, memoriaMax: 2e9 },
+  { tipo: "qemu", vmid: 301, nome: "floripaot", estado: "running", cpu: 0.02, memoria: 2e9, memoriaMax: 8e9, uptime: 90061 },
+  { tipo: "lxc", vmid: 104, nome: "starloco", estado: "stopped", cpu: 0, memoria: 0, memoriaMax: 2e9, uptime: 0 },
+  { tipo: "lxc", vmid: 103, nome: "portal", estado: "running", cpu: 0.01, memoria: 3e8, memoriaMax: 5e8, uptime: 7200 },
 ];
 
-async function servidor(caches: {
-  pve?: () => Promise<Resultado<RecursoPve[]>>;
-} = {}) {
+async function servidor(caches = cachesDeTeste(RECURSOS)) {
   const db = abrirBanco(":memory:");
   semear(db);
-  db.prepare("INSERT INTO usuarios (login,nome,senha,papel) VALUES (?,?,?,?)")
-    .run("matheus", "Matheus", gerarHash("s1"), "admin");
-  db.prepare("INSERT INTO usuarios (login,nome,senha,papel) VALUES (?,?,?,?)")
-    .run("marcella", "Marcella", gerarHash("s2"), "casa");
-  const app = criarApp({
-    db,
-    segredoSessao: "teste",
-    exec: async () => bom("running"),
-    caches: {
-      pve: new Cache(caches.pve ?? (async () => bom(RECURSOS))),
-    },
-  });
+  const inserir = db.prepare("INSERT INTO usuarios (login,nome,senha,papel) VALUES (?,?,?,?)");
+  inserir.run("matheus", "Matheus", gerarHash("s1"), "admin");
+  inserir.run("marcella", "Marcella", gerarHash("s2"), "casa");
+  const app = criarApp({ db, segredoSessao: "teste", exec: async () => bom("running"), caches });
   const s = app.listen(0);
   const base = `http://127.0.0.1:${(s.address() as { port: number }).port}`;
   const entrar = async (login: string, senha: string) => {
@@ -41,86 +34,121 @@ async function servidor(caches: {
     });
     return (r.headers.get("set-cookie") ?? "").split(";")[0]!;
   };
-  return { base, s, entrar };
+  return { db, s, base, entrar };
 }
 
-test("o admin ve o servidor de jogo na Inicio", async () => {
-  const { base, s, entrar } = await servidor();
+function cartao(html: string, titulo: string): string {
+  const m = html.match(new RegExp(`<section class="cartao">(?:(?!</section>)[\\s\\S])*?${titulo}[\\s\\S]*?</section>`));
+  assert.ok(m, `cartao "${titulo}" nao encontrado`);
+  return m![0];
+}
+
+test("duracao usa duas unidades, e nao mente sobre valor invalido", () => {
+  assert.equal(duracao(90061), "1d 1h");
+  assert.equal(duracao(7200), "2h 0min");
+  assert.equal(duracao(300), "5min");
+  assert.equal(duracao(0), "—");
+  assert.equal(duracao(-5), "—");
+  assert.equal(duracao(NaN), "—");
+});
+
+test("a previsao aparece com a temperatura de agora e os proximos dias", async () => {
+  const { s, base, entrar } = await servidor();
   try {
     const c = await entrar("matheus", "s1");
     const html = await (await fetch(base + "/", { headers: { cookie: c } })).text();
-    assert.ok(html.includes("Jogo FloripaOT"));
+    const c1 = cartao(html, "Florianopolis");
+    assert.match(c1, /18°C, garoa/);
+    assert.match(c1, /98%/);
+    // O dia vira nome, nao data crua: "2026-09-01" nao diz nada a ninguem.
+    assert.doesNotMatch(c1, /2026-09-01/);
+    assert.match(c1, /17° a 24° · nublado/);
   } finally { s.close(); }
 });
 
-test("a Marcella NAO ve o servidor de jogo na Inicio", async () => {
-  const { base, s, entrar } = await servidor();
+test("quem esta conectado separa online de ausente, com ha quanto tempo", async () => {
+  const { s, base, entrar } = await servidor();
+  try {
+    const c = await entrar("matheus", "s1");
+    const html = await (await fetch(base + "/", { headers: { cookie: c } })).text();
+    const c1 = cartao(html, "Quem esta conectado");
+    assert.match(c1, /2 de 3/);
+    assert.match(c1, /iphone-do-matheus[\s\S]*?conectado/);
+    assert.match(c1, /drive[\s\S]*?ha 2d/);
+    assert.match(c1, /portal \(este portal\)/);
+  } finally { s.close(); }
+});
+
+test("o servidor mostra ha quanto tempo esta ligado, e quanto esta usando", async () => {
+  const { s, base, entrar } = await servidor();
+  try {
+    const c = await entrar("matheus", "s1");
+    const html = await (await fetch(base + "/", { headers: { cookie: c } })).text();
+    const c1 = cartao(html, "Servidor da casa");
+    assert.match(c1, /1d 1h/, "uptime em dias e horas");
+    assert.match(c1, /12\.0 GB de 32\.0 GB \(38%\)/, "memoria com proporcao");
+    assert.match(c1, /carga 0\.52/);
+  } finally { s.close(); }
+});
+
+test("as maquinas ligadas aparecem com o tempo de cada uma; as paradas nao", async () => {
+  const { s, base, entrar } = await servidor();
+  try {
+    const c = await entrar("matheus", "s1");
+    const html = await (await fetch(base + "/", { headers: { cookie: c } })).text();
+    const c1 = cartao(html, "Maquinas ligadas");
+    assert.match(c1, /floripaot[\s\S]*?1d 1h/);
+    assert.match(c1, /portal[\s\S]*?2h 0min/);
+    assert.doesNotMatch(c1, /starloco/, "starloco esta parada, nao entra em 'ligadas'");
+  } finally { s.close(); }
+});
+
+test("a Inicio nao repete os servicos: eles moram no Mapa", async () => {
+  const { s, base, entrar } = await servidor();
+  try {
+    const c = await entrar("matheus", "s1");
+    const html = await (await fetch(base + "/", { headers: { cookie: c } })).text();
+    for (const servico of ["Radarr", "Sonarr", "Jellyfin", "Dofus login", "Site FloripaOT"])
+      assert.doesNotMatch(html, new RegExp(servico), `${servico} e do Mapa, nao da Inicio`);
+    assert.match(html, /href="\/mapa"/, "e a Inicio aponta para la");
+  } finally { s.close(); }
+});
+
+test("a Marcella ve o tempo e a rede, e nao o estado do servidor", async () => {
+  const { s, base, entrar } = await servidor();
   try {
     const c = await entrar("marcella", "s2");
     const html = await (await fetch(base + "/", { headers: { cookie: c } })).text();
-    assert.ok(html.includes("Jellyfin"), "o que e dela aparece");
-    assert.ok(!html.includes("Jogo FloripaOT"), "o que nao e dela, nao");
-    assert.ok(!html.includes("Proxmox"));
+    assert.match(html, /Florianopolis/);
+    assert.match(html, /Quem esta conectado/);
+    assert.doesNotMatch(html, /Servidor da casa/, "uso do host e de admin");
+    assert.doesNotMatch(html, /Maquinas ligadas/, "as maquinas sao de admin");
   } finally { s.close(); }
 });
 
-test("Proxmox fora do ar degrada o cartao, nao a pagina", async () => {
-  const { base, s, entrar } = await servidor({ pve: async () => ruim<RecursoPve[]>("caiu") });
+test("fonte que falha vira cartao vermelho com o motivo, nao pagina quebrada", async () => {
+  const caches = cachesDeTeste(RECURSOS);
+  caches.tempo = new Cache(async () => ruim("previsao respondeu 503"));
+  const { s, base, entrar } = await servidor(caches);
   try {
     const c = await entrar("matheus", "s1");
     const r = await fetch(base + "/", { headers: { cookie: c } });
-    assert.equal(r.status, 200, "a pagina inteira nao pode cair junto");
+    assert.equal(r.status, 200, "uma fonte fora do ar nao derruba a pagina");
     const html = await r.text();
-    assert.ok(/desatualizado|indispon/i.test(html), "e precisa dizer que esta ruim");
+    const c1 = cartao(html, "Florianopolis");
+    assert.match(c1, /ponto erro/, "o cartao fica vermelho");
+    assert.match(c1, /503/, "e diz o motivo");
+    // As outras fontes continuam mostrando o que sabem.
+    assert.match(html, /Quem esta conectado/);
   } finally { s.close(); }
 });
 
-test("a Marcella ve botao do Jellyfin e nenhum do que nao e dela", async () => {
-  const { base, s, entrar } = await servidor();
-  try {
-    const c = await entrar("marcella", "s2");
-    const html = await (await fetch(base + "/", { headers: { cookie: c } })).text();
-    assert.match(html, /name="alvo" value="201"/, "o Jellyfin e dela");
-    assert.doesNotMatch(html, /name="alvo" value="301"/, "o servidor de jogo nao");
-    assert.doesNotMatch(html, /name="alvo" value="host"/, "e o host muito menos");
-  } finally { s.close(); }
-});
-
-test("os botoes de acao ficam DENTRO do cartao da propria maquina, nao soltos na grade", async () => {
-  // Regressao do defeito visual/de seguranca: os botoes apareciam como
-  // irmaos do <section class="cartao">, celulas soltas do grid — impossivel
-  // dizer com certeza a qual maquina cada grupo de botoes pertence. Os
-  // testes antigos so procuravam os campos em html.includes()/match() na
-  // pagina inteira, e eles estavam la — so no lugar errado. Este teste
-  // recorta a pagina em blocos de cartao e prova contencao, nao presenca.
-  const { base, s, entrar } = await servidor();
-  try {
-    const c = await entrar("marcella", "s2");
-    const html = await (await fetch(base + "/", { headers: { cookie: c } })).text();
-
-    const blocos = html.match(/<section class="cartao">[\s\S]*?<\/section>/g) ?? [];
-    assert.ok(blocos.length > 0, "a pagina tem que ter pelo menos um cartao");
-
-    const blocoJellyfin = blocos.find((b) => b.includes("Jellyfin"));
-    assert.ok(blocoJellyfin, "tem que existir um cartao do Jellyfin");
-    assert.match(
-      blocoJellyfin!,
-      /name="alvo" value="201"/,
-      "o botao do Jellyfin tem que estar DENTRO do cartao do Jellyfin"
-    );
-
-    // Nenhum grupo de botoes pode sobrar fora de um bloco de cartao: some
-    // toda ocorrencia de class="acoes" dentro de algum bloco e compare com
-    // o total na pagina inteira.
-    const totalAcoesNaPagina = (html.match(/class="acoes"/g) ?? []).length;
-    const totalAcoesDentroDeCartoes = blocos.reduce(
-      (soma, b) => soma + (b.match(/class="acoes"/g) ?? []).length,
-      0
-    );
-    assert.equal(
-      totalAcoesDentroDeCartoes,
-      totalAcoesNaPagina,
-      "nenhum bloco de botoes pode ficar fora de um <section class=\"cartao\">"
-    );
-  } finally { s.close(); }
+test("o dia da previsao vira nome, e o de hoje diz 'hoje'", () => {
+  // Data fixa: um teste que dependa do dia real passa hoje e quebra amanha.
+  const hoje = new Date(2026, 7, 31); // 31/08/2026, uma segunda
+  assert.equal(nomeDoDia("2026-08-31", hoje), "hoje");
+  assert.equal(nomeDoDia("2026-09-01", hoje), "amanha");
+  assert.equal(nomeDoDia("2026-09-02", hoje), "quarta");
+  // Entrada estranha nao inventa dia: devolve o que recebeu.
+  assert.equal(nomeDoDia("nao-e-data", hoje), "nao-e-data");
 });

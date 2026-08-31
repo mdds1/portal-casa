@@ -4,14 +4,14 @@ import { abrirBanco } from "../src/db/conexao.js";
 import { semear } from "../src/db/semente.js";
 import { gerarHash } from "../src/auth/senha.js";
 import { criarApp } from "../src/app.js";
-import { Cache } from "../src/cache.js";
 import { bom } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
 import { botaoDoHost, botoesDaMaquina } from "../src/telas/infraestrutura.js";
+import { cachesDeTeste } from "./apoio.js";
 
 const RECURSOS: RecursoPve[] = [
-  { tipo: "qemu", vmid: 301, nome: "floripaot", estado: "running", cpu: 0.02, memoria: 2e9, memoriaMax: 8e9 },
-  { tipo: "lxc", vmid: 104, nome: "starloco", estado: "stopped", cpu: 0, memoria: 0, memoriaMax: 2e9 },
+  { tipo: "qemu", vmid: 301, nome: "floripaot", estado: "running", cpu: 0.02, memoria: 2e9, memoriaMax: 8e9, uptime: 25200 },
+  { tipo: "lxc", vmid: 104, nome: "starloco", estado: "stopped", cpu: 0, memoria: 0, memoriaMax: 2e9, uptime: 0 },
 ];
 
 // Devolve o <tr>...</tr> inteiro que contem o nome dado, para asserir campo
@@ -30,9 +30,7 @@ async function comAdmin() {
   const app = criarApp({
     db, segredoSessao: "teste",
     exec: async () => bom("running"),
-    caches: {
-      pve: new Cache(async () => bom(RECURSOS)),
-    },
+    caches: cachesDeTeste(RECURSOS),
   });
   const s = app.listen(0);
   const base = `http://127.0.0.1:${(s.address() as { port: number }).port}`;
