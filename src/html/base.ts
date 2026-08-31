@@ -37,6 +37,12 @@ form.sair { margin-left:auto; }
 button { font:inherit; padding:.35rem .7rem; border-radius:6px;
   border:1px solid var(--borda); background:var(--fundo); color:inherit; cursor:pointer; }
 @media (max-width:520px) { .grade { grid-template-columns:1fr; } }
+table { border-collapse:collapse; width:100%; background:var(--cartao);
+  border:1px solid var(--borda); border-radius:10px; }
+th,td { text-align:left; padding:.5rem .65rem; border-bottom:1px solid var(--borda); }
+th { color:var(--fraco); font-weight:600; }
+tr:last-child td { border-bottom:0; }
+small { color:var(--fraco); }
 `;
 
 type ItemMenu = { href: string; rotulo: string; papel: string };
