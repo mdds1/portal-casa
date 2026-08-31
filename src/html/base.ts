@@ -81,6 +81,49 @@ th,td { text-align:left; padding:.5rem .65rem; border-bottom:1px solid var(--bor
 th { color:var(--fraco); font-weight:600; }
 tr:last-child td { border-bottom:0; }
 small { color:var(--fraco); }
+/* ---- Mapa ---------------------------------------------------------------
+   A tela responde "o que existe na casa, onde mora, e esta de pe?". Cada
+   categoria e um <details>: o navegador abre e fecha sozinho, sem script.
+   O item e uma grade de colunas fixas — nome, endereco, maquina — porque
+   administrar e varrer a mesma coluna com o olho, nao ler frases. */
+.mapa { display:grid; gap:.85rem; }
+.secao { background:var(--cartao); border:1px solid var(--borda); border-radius:10px; }
+.secao > summary { cursor:pointer; list-style:none; padding:.7rem .9rem;
+  display:flex; align-items:center; gap:.6rem; font-weight:600; border-radius:10px; }
+.secao > summary::-webkit-details-marker { display:none; }
+.secao > summary::before { content:"▸"; color:var(--fraco); transition:transform .15s; }
+.secao[open] > summary::before { transform:rotate(90deg); }
+.secao[open] > summary { border-bottom:1px solid var(--borda); border-radius:10px 10px 0 0; }
+.secao > summary:focus-visible { outline:2px solid currentColor; outline-offset:-2px; }
+.conta { margin-left:auto; font-weight:400; font-size:.8rem; color:var(--fraco);
+  font-variant-numeric:tabular-nums; }
+.grupo { padding:.6rem .9rem .8rem; }
+.grupo + .grupo { border-top:1px solid color-mix(in srgb, var(--borda) 50%, transparent); }
+.grupo > h3 { margin:0 0 .45rem; font-size:.72rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:.08em; color:var(--fraco); }
+.itens { list-style:none; margin:0; padding:0; display:grid; gap:.3rem; }
+.item { display:grid; gap:.1rem .6rem; align-items:center; padding:.4rem .5rem;
+  border-radius:7px; grid-template-columns:auto 1fr auto auto;
+  grid-template-areas:"ponto nome endereco maquina" ". nota nota nota"; }
+.item:hover { background:color-mix(in srgb, var(--borda) 35%, transparent); }
+.item .ponto { grid-area:ponto; }
+.item .nome { grid-area:nome; font-weight:600; }
+.item .endereco { grid-area:endereco; font-variant-numeric:tabular-nums;
+  font-size:.82rem; color:var(--fraco); }
+.item .maquina { grid-area:maquina; font-size:.75rem; color:var(--fraco);
+  border:1px solid var(--borda); border-radius:999px; padding:.1rem .5rem; white-space:nowrap; }
+.item .nota { grid-area:nota; font-size:.78rem; color:var(--fraco); }
+.maquinas { display:grid; gap:.5rem; padding:.2rem .9rem .9rem; }
+.hospede { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+  padding:.5rem .6rem; border:1px dashed var(--borda); border-radius:8px; }
+.hospede .quem { font-size:.82rem; }
+.hospede .acoes { margin-top:0; margin-left:auto; }
+@media (max-width:640px) {
+  .item { grid-template-columns:auto 1fr auto;
+    grid-template-areas:"ponto nome endereco" ". maquina maquina" ". nota nota"; }
+  .item .maquina { justify-self:start; }
+}
+
 `;
 
 // Poder minimo, na mesma escala da tabela papeis (admin=100, casa=10) --
@@ -112,30 +155,5 @@ export function layout(o: {
 <style>${ESTILO}</style>
 <header>${itens}<form class="sair" method="post" action="/sair"><button>Sair</button></form></header>
 <main>${o.corpoHtml}</main></html>
-/* Mapa: a arvore da casa. O fio vertical a esquerda de cada ramo e o que
-   transforma indentacao em hierarquia visivel — sem ele isto seria so uma
-   lista com margem. Cada folha e uma grade de colunas fixas para os olhos
-   varrerem porta e maquina em coluna, que e como se administra. */
-.mapa { display:grid; gap:1.25rem; }
-.tronco h2 { margin:0 0 .5rem; font-size:1.05rem; letter-spacing:.02em;
-  padding-bottom:.3rem; border-bottom:1px solid var(--borda); }
-.galho { margin:.7rem 0 .25rem; font-size:.8rem; font-weight:600;
-  text-transform:uppercase; letter-spacing:.06em; color:var(--fraco); }
-.ramo { list-style:none; margin:0 0 .2rem; padding:0 0 0 .9rem;
-  border-left:2px solid var(--borda); }
-.folha { display:grid; align-items:baseline; gap:.15rem .6rem; padding:.3rem 0;
-  grid-template-columns:auto minmax(9rem,14rem) 4.5rem 1fr;
-  border-bottom:1px solid color-mix(in srgb, var(--borda) 45%, transparent); }
-.folha:last-child { border-bottom:0; }
-.folha .nome { font-weight:600; }
-.folha .porta { font-variant-numeric:tabular-nums; color:var(--fraco);
-  font-size:.85rem; text-align:right; }
-.folha .onde { color:var(--fraco); font-size:.85rem; }
-.folha .nota { grid-column:2 / -1; color:var(--fraco); font-size:.8rem; }
-@media (max-width:640px) {
-  .folha { grid-template-columns:auto 1fr auto; }
-  .folha .onde { grid-column:2 / -1; }
-  .folha .nota { grid-column:2 / -1; }
-}
 `;
 }

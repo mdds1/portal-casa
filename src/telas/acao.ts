@@ -160,7 +160,7 @@ export function rotaAcao(deps: DepsAcao): RequestHandler {
     // Sem este aviso, "desligou" e "nao desligou" terminam na mesma pagina
     // silenciosa. O nome do alvo vem do inventario, nao do formulario, mas quem
     // desenha a faixa escapa assim mesmo: a query e editavel pelo navegador.
-    const destino = alvo.tipo === "host" ? "/" : (corpo.voltar === "infra" ? "/infraestrutura" : "/");
+    const destino = alvo.tipo === "host" ? "/" : (corpo.voltar === "infra" ? "/infraestrutura" : corpo.voltar === "mapa" ? "/mapa" : "/");
     const q = new URLSearchParams({ acao: r.ok ? "ok" : "falha", alvo: nome });
     return res.redirect(`${destino}?${q.toString()}`);
   };

@@ -19,7 +19,8 @@ export function botoesDaMaquina(
   papel: string,
   vmid: number,
   classe: "vm" | "ct",
-  csrf: string
+  csrf: string,
+  voltar = "infra"
 ): string {
   const alvo: Alvo = { tipo: "maquina", vmid, classe };
   const oferecidos = VERBOS.filter((v) => podeAgir(db, papel, alvo, v).permitido);
@@ -28,7 +29,7 @@ export function botoesDaMaquina(
 <input type="hidden" name="alvo" value="${escapar(vmid)}">
 <input type="hidden" name="verbo" value="${escapar(v)}">
 <input type="hidden" name="csrf" value="${escapar(csrf)}">
-<input type="hidden" name="voltar" value="infra">
+<input type="hidden" name="voltar" value="${escapar(voltar)}">
 <button>${escapar(ROTULOS[v])}</button>
 </form>`).join("");
 }

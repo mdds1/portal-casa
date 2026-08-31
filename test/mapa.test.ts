@@ -44,7 +44,7 @@ async function servidor() {
 // algum lugar da pagina, que passaria com a arvore toda embaralhada.
 function categoria(html: string, nome: string): string {
   const m = html.match(
-    new RegExp(`<section class="tronco">\\s*<h2>${nome}</h2>[\\s\\S]*?</section>`)
+    new RegExp(`<details class="secao" open>\\s*<summary>${nome}[\\s\\S]*?</details>`)
   );
   assert.ok(m, `categoria ${nome} nao encontrada`);
   return m![0];
@@ -74,10 +74,10 @@ test("os containers do Docker aparecem, com a maquina que os hospeda", async () 
     for (const nome of ["Radarr", "Sonarr", "Prowlarr", "Bazarr", "qBittorrent", "Seerr", "FlareSolverr", "RomM"])
       assert.match(html, new RegExp(nome), `${nome} deveria aparecer no mapa`);
     // Cada um mora no CT 102, e o mapa tem que dizer isso.
-    const folhas = html.match(/<li class="folha">[\s\S]*?<\/li>/g) ?? [];
-    const radarr = folhas.find((f) => f.includes("Radarr"));
-    assert.ok(radarr, "folha do Radarr nao encontrada");
-    assert.match(radarr!, /CT 102/, "a folha do Radarr tem que dizer onde ele mora");
+    const itens = html.match(/<li class="item">[\s\S]*?<\/li>/g) ?? [];
+    const radarr = itens.find((f) => f.includes("Radarr"));
+    assert.ok(radarr, "item do Radarr nao encontrado");
+    assert.match(radarr!, /CT 102/, "o item do Radarr tem que dizer onde ele mora");
   } finally { s.close(); }
 });
 
@@ -93,14 +93,14 @@ test("a Marcella nao ve os servicos de admin", async () => {
   } finally { s.close(); }
 });
 
-test("o estado da maquina que hospeda aparece na folha", async () => {
+test("o estado da maquina que hospeda aparece no item", async () => {
   const { s, base, entrar } = await servidor();
   try {
     const c = await entrar("matheus", "s1");
     const html = await (await fetch(base + "/mapa", { headers: { cookie: c } })).text();
-    const folhas = html.match(/<li class="folha">[\s\S]*?<\/li>/g) ?? [];
-    const jellyfin = folhas.find((f) => f.includes("Jellyfin"));
-    const batocera = folhas.find((f) => f.includes("Batocera"));
+    const itens = html.match(/<li class="item">[\s\S]*?<\/li>/g) ?? [];
+    const jellyfin = itens.find((f) => f.includes("Jellyfin"));
+    const batocera = itens.find((f) => f.includes("Batocera"));
     assert.match(jellyfin!, /ponto ok/, "o CT 201 esta running, o ponto tem que ser verde");
     assert.match(batocera!, /ponto parado/, "a VM 120 esta stopped");
   } finally { s.close(); }
@@ -115,5 +115,52 @@ test("url de esquema perigoso nao vira link", async () => {
     const html = await (await fetch(base + "/mapa", { headers: { cookie: c } })).text();
     assert.doesNotMatch(html, /javascript:/, "esquema perigoso nao pode chegar ao HTML");
     assert.match(html, /Radarr/, "o servico continua listado, so sem link");
+  } finally { s.close(); }
+});
+
+test("cada categoria traz os botoes das maquinas que a hospedam, e eles voltam ao Mapa", async () => {
+  const { s, base, entrar } = await servidor();
+  try {
+    const c = await entrar("matheus", "s1");
+    const html = await (await fetch(base + "/mapa", { headers: { cookie: c } })).text();
+
+    // Jogos e hospedada pelo CT 104, CT 102 e VM 301: tem que haver botao para
+    // as acionaveis, DENTRO da secao de Jogos.
+    const jogos = categoria(html, "Jogos");
+    assert.match(jogos, /name="alvo" value="104"/, "o starloco e acionavel e hospeda o Dofus");
+    assert.match(jogos, /name="alvo" value="301"/, "a VM do FloripaOT hospeda o Tibia");
+
+    // Todo formulario do Mapa volta para o Mapa, senao a acao joga a pessoa
+    // para outra tela sem explicacao.
+    const forms = html.match(/<form[^>]*action="\/acao"[\s\S]*?<\/form>/g) ?? [];
+    assert.ok(forms.length > 0, "deveria haver botoes de acao no mapa");
+    for (const f of forms) {
+      assert.match(f, /name="csrf"/, "formulario sem csrf");
+      assert.match(f, /name="voltar" value="mapa"/, "o botao do Mapa tem que voltar ao Mapa");
+    }
+  } finally { s.close(); }
+});
+
+test("a Marcella nao recebe botao de maquina que nao pode acionar", async () => {
+  const { s, base, entrar } = await servidor();
+  try {
+    const c = await entrar("marcella", "s2");
+    const html = await (await fetch(base + "/mapa", { headers: { cookie: c } })).text();
+    // A VM 301 e de admin: nem o servico nem o botao dela podem aparecer.
+    assert.doesNotMatch(html, /name="alvo" value="301"/, "o servidor de jogo nao e dela");
+    assert.doesNotMatch(html, /name="alvo" value="host"/, "o host nunca aparece no mapa");
+  } finally { s.close(); }
+});
+
+test("as secoes sao dobraveis sem script", async () => {
+  const { s, base, entrar } = await servidor();
+  try {
+    const c = await entrar("matheus", "s1");
+    const html = await (await fetch(base + "/mapa", { headers: { cookie: c } })).text();
+    assert.match(html, /<details class="secao" open>/, "cada categoria e um <details>");
+    assert.match(html, /<summary>/, "com um <summary> que abre e fecha");
+    assert.doesNotMatch(html, /<script/, "o Mapa nao usa script nenhum");
+    // O contador do cabecalho diz quantos estao no ar.
+    assert.match(html, /class="conta">\d+ de \d+ no ar</, "cada secao mostra quantos estao no ar");
   } finally { s.close(); }
 });

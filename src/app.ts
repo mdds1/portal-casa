@@ -41,7 +41,7 @@ export function criarApp(deps: Deps): express.Express {
 
   // O Mapa e leitura para qualquer pessoa logada: o recorte por papel acontece
   // dentro da consulta, entao a casa ve so o que lhe cabe.
-  app.get("/mapa", exigirLogin, rotaMapa({ db: deps.db, caches: deps.caches }));
+  app.get("/mapa", exigirLogin, rotaMapa({ db: deps.db, caches: deps.caches, segredoSessao: deps.segredoSessao }));
 
   app.get("/infraestrutura", exigirPapel(deps.db, "admin"),
     rotaInfraestrutura({ db: deps.db, caches: deps.caches, segredoSessao: deps.segredoSessao }));
