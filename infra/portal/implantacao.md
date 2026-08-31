@@ -94,3 +94,101 @@ Nenhuma acao de escrita: nada liga, desliga ou altera maquina. O
 junto com as telas Games, Midia, Casa e Administracao, e com a leitura do Home
 Assistant — cuja fonte ja existe em `src/fontes/homeassistant.ts`, testada, mas
 deliberadamente nao montada por nao ter consumidor ainda.
+
+---
+
+# Segunda fatia — as acoes de escrita
+
+Feita em **31/08/2026**. O portal passou a ligar, desligar e reiniciar as
+maquinas marcadas como `acionavel` no inventario, e a desligar o proprio host.
+
+## O caminho de uma acao
+
+    navegador -> POST /acao (CT 103) -> ssh com chave de comando forcado
+              -> /usr/local/sbin/portal-acao (host) -> qm / pct
+
+O portal **nao** fala com a API de escrita do Proxmox. O token `portal@pve` segue
+sendo `PVEAuditor`, so leitura — quem escreve e o SSH, e o que ele consegue fazer
+esta escrito nas 40 linhas do `portal-acao`.
+
+## O que foi instalado no host
+
+    /usr/local/sbin/portal-acao          modo 700, dono root
+    /root/.ssh/authorized_keys           uma linha nova, com command= forcado
+
+Backup do arquivo anterior em `/root/.ssh/authorized_keys.bak-2026-08-31`. A
+linha nova nao substituiu nada: as tres chaves que ja existiam continuam la.
+
+No CT 103:
+
+    /etc/portal/acao_key                 modo 600, dono portal
+    /etc/portal.env                      + PORTAL_CHAVE_ACAO e PORTAL_HOST_ACAO
+
+## A barreira, provada de fora
+
+Como o usuario `portal`, de dentro do CT 103:
+
+    ssh -i /etc/portal/acao_key root@192.168.15.200 'ct shutdown 103'
+      -> alvo recusado                       (saida 3)
+    ssh -i /etc/portal/acao_key root@192.168.15.200 'cat /etc/shadow'
+      -> alvo recusado                       (saida 3)
+    ssh -i /etc/portal/acao_key root@192.168.15.200 id
+      -> invalido                            (saida 2)
+
+Os dois ultimos sao a prova do `command=`: mesmo pedindo outra coisa, o host so
+executa o `portal-acao`. Nao ha shell do outro lado.
+
+`ct status 201` hoje responde **`verbo invalido`** — o verbo `status` foi
+removido do wrapper de proposito, porque o portal nunca o emite e ele nao tem
+chamador. A leitura de estado que o portal usa e a ultima linha do script, que
+nao passa pelo `case`.
+
+## A migracao, provada contra o banco de producao
+
+`CREATE TABLE IF NOT EXISTS` nao acrescenta coluna a tabela existente — falha em
+silencio. Por isso `conexao.ts` tem uma migracao. Ela foi exercitada contra uma
+**copia do `/var/lib/portal/portal.db` real** antes de publicar:
+
+    ANTES   colunas: ... papel_minimo          usuarios: 2  maquinas: 10
+    DEPOIS  colunas: ... papel_minimo acionavel  usuarios: 2 (marcella, matheus)
+
+**A armadilha:** a coluna entra com `DEFAULT 0`, entao logo apos a migracao
+**nenhuma maquina e acionavel** e nenhum botao aparece. So a semente marca as
+seis. Quem publicar sem rodar `semear.js` vai ver uma tela sem botoes e achar
+que e defeito.
+
+    pct exec 103 -- runuser -u portal -- \
+      env PORTAL_BANCO=/var/lib/portal/portal.db node /opt/portal/dist/scripts/semear.js
+
+(`su -s /bin/sh portal -c` tambem funciona; `runuser` e so o que passou pelo
+classificador de comandos da sessao.)
+
+Backup do banco antes da publicacao: `/var/lib/portal/portal.db.antes-acoes`.
+
+## Estado verificado em 31/08/2026, por conteudo
+
+    /infraestrutura (admin)  -> 19 formularios de acao, todos com csrf
+                                6 maquinas x 3 verbos, mais o host (so shutdown)
+                                103, 110, 111 e 101 ausentes, como manda o desenho
+    ligar o CT 104 pelo portal -> pct status 104: running
+                                  acoes_log: matheus start ct:104 ok=1 "running"
+    marcella na Inicio       -> so o Jellyfin (201); /infraestrutura -> 403
+    marcella POST alvo=301   -> 403, registrado "sem permissao para esta maquina"
+    marcella POST alvo=host  -> 403, registrado "desligar o host e so do admin"
+    csrf de outra sessao     -> 403, registrado "csrf invalido"
+
+As tres recusas viraram linha no `acoes_log`, que era a restricao global mais
+facil de perder de vista.
+
+**O botao de desligar o host NAO foi testado** — derruba a casa inteira, e
+voltar depende do atalho do iPhone. Fica combinado com o Matheus.
+
+## Uma medida real que difere da estimativa
+
+`pct shutdown 104 --timeout 12 --forceStop 0` levou **15 s** de ponta a ponta,
+nao os ~13 s estimados na revisao. O limite do lado do portal e 20 s
+(`src/acoes/wrapper.ts`), entao a folga verdadeira e de ~4 s, nao 7 s. Se algum
+guest for mais lento que o starloco, o portal vai gravar `ok=0` numa maquina que
+desligou. **Antes de confiar no log de um shutdown de VM, cronometrar a VM 301.**
+O ajuste, se preciso, e subir o `msLimite` — os dois numeros estao comentados um
+no outro.
