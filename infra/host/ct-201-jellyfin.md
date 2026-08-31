@@ -73,3 +73,38 @@ Copia em /root/arquivo/ha-pve-power.antes-do-201-301-104.
 Parado, como rede de seguranca, junto com o vzdump de 544 MB tirado ANTES de
 qualquer alteracao. Apagar so depois de o 201 rodar alguns dias, e so por
 decisao do Matheus.
+
+---
+
+## 31/08/2026 — o 201 foi apagado por engano e restaurado
+
+As 11:47 houve um desligamento geral da casa; as 11:58, no religamento, alguem
+subiu o **CT 101** em vez do 201, pela interface do Proxmox. Nenhuma automacao
+teve culpa: o Home Assistant aponta corretamente para `ct 201` (o `101` no
+`unique_id` e so identificador interno), e nenhum dos dois tem `onboot`.
+
+A armadilha era o **nome**: `101 Jellyfin` e `201 jellyfin` diferiam por uma
+maiuscula, e o obsoleto aparecia primeiro na lista.
+
+Com o 101 no ar e o 201 parado, o quadro ficou invertido, e a leitura obvia —
+"o parado e nao-privilegiado, logo a migracao ficou pela metade" — e o oposto
+da verdade. Foi a leitura que eu (Claude) fiz, e apaguei o 201.
+
+Recuperado do `vzdump` tirado minutos antes de destruir. O 101 foi desligado, o
+201 subiu, e foi verificado por conteudo: `/mnt/media` lista as 5 pastas,
+escrita funciona (o Jellyfin grava metadados), `192.168.15.15:8096` devolve 302.
+
+**O 101 foi renomeado para `jellyfin-antigo-nao-ligar`**, com descricao dizendo
+que compartilha o MAC do 201. Se um dia ele for apagado, o backup de 30/08
+continua sendo a rede de seguranca.
+
+### O que evita a repeticao
+
+Dois containers com o mesmo MAC nunca podem estar ligados juntos, e nada no
+Proxmox impede isso — a unica protecao e o nome. Ao migrar container por
+vzdump/restore, renomeie o antigo **no mesmo dia**, antes que a memoria de qual
+e qual dependa de alguem lembrar.
+
+E ao encontrar dois containers parecidos, um ligado e outro parado: leia o
+`infra/host/` antes de concluir qual e o bom. O estado de hoje pode ser um
+acidente de ontem.
