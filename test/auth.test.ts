@@ -93,3 +93,106 @@ test("cookie forjado nao vale", async () => {
     assert.equal(r.status, 302, "deve cair no login, nao entrar");
   });
 });
+
+// O teste anterior mandava um MAC de 8 caracteres, que ja era recusado so
+// pela checagem de tamanho em verificarAssinatura -- passaria mesmo se a
+// funcao sempre devolvesse o valor sem checar nada. Este aqui faz login de
+// verdade, pega um cookie assinado valido, troca UM caractere hexadecimal do
+// MAC mantendo o tamanho, e confirma que o servidor recusa mesmo assim.
+test("cookie valido com um caractere do MAC trocado nao vale", async () => {
+  await comServidor(async (base) => {
+    const cookieBruto = await entrar(base, "matheus", "s1");
+    assert.notEqual(cookieBruto, "");
+    const par = cookieBruto.split(";")[0]!; // "portal_sessao=<valor>.<mac>"
+    const [nome, valorAssinado] = par.split("=");
+    const corte = valorAssinado!.lastIndexOf(".");
+    const valor = valorAssinado!.slice(0, corte);
+    const mac = valorAssinado!.slice(corte + 1);
+    const ultimo = mac.at(-1)!;
+    const trocado = ultimo === "0" ? "1" : "0";
+    const macAdulterado = mac.slice(0, -1) + trocado;
+    assert.equal(macAdulterado.length, mac.length, "tamanho do MAC precisa continuar igual");
+
+    const r = await fetch(`${base}/infraestrutura`, {
+      headers: { cookie: `${nome}=${valor}.${macAdulterado}` },
+      redirect: "manual",
+    });
+    assert.equal(r.status, 302, "MAC adulterado deve cair no login, nao entrar");
+    assert.equal(r.headers.get("location"), "/entrar");
+  });
+});
+
+test("sessao expirada nao vale, e a linha e apagada", async () => {
+  await comServidor(async (base, db) => {
+    const cookieBruto = await entrar(base, "matheus", "s1");
+    const par = cookieBruto.split(";")[0]!;
+    const [, valorAssinado] = par.split("=");
+    const id = verificarAssinatura(valorAssinado!, "teste");
+    assert.ok(id, "cookie de login deveria trazer uma assinatura valida");
+
+    // Forca a sessao a ja ter expirado.
+    db.prepare("UPDATE sessoes SET expira = ? WHERE id = ?")
+      .run(new Date(Date.now() - 1000).toISOString(), id);
+
+    const r = await fetch(`${base}/infraestrutura`, {
+      headers: { cookie: par },
+      redirect: "manual",
+    });
+    assert.equal(r.status, 302, "sessao expirada nao pode dar acesso");
+    assert.equal(r.headers.get("location"), "/entrar");
+
+    const linha = db.prepare("SELECT 1 FROM sessoes WHERE id = ?").get(id);
+    assert.equal(linha, undefined, "sessao expirada deveria ter sido apagada na leitura");
+  });
+});
+
+test("usuario desativado perde a sessao na proxima requisicao", async () => {
+  await comServidor(async (base, db) => {
+    const cookieBruto = await entrar(base, "matheus", "s1");
+    const par = cookieBruto.split(";")[0]!;
+
+    // Confirma que, antes da desativacao, a sessao ainda vale.
+    const antes = await fetch(`${base}/infraestrutura`, {
+      headers: { cookie: par },
+      redirect: "manual",
+    });
+    assert.equal(antes.status, 200);
+
+    db.prepare("UPDATE usuarios SET ativo = 0 WHERE login = ?").run("matheus");
+
+    const depois = await fetch(`${base}/infraestrutura`, {
+      headers: { cookie: par },
+      redirect: "manual",
+    });
+    assert.equal(depois.status, 302, "usuario desativado nao pode continuar usando a sessao aberta");
+    assert.equal(depois.headers.get("location"), "/entrar");
+  });
+});
+
+test("POST /sair invalida a sessao no servidor, nao so o cookie no navegador", async () => {
+  await comServidor(async (base) => {
+    const cookieBruto = await entrar(base, "matheus", "s1");
+    const par = cookieBruto.split(";")[0]!;
+
+    const antes = await fetch(`${base}/infraestrutura`, {
+      headers: { cookie: par },
+      redirect: "manual",
+    });
+    assert.equal(antes.status, 200);
+
+    await fetch(`${base}/sair`, {
+      method: "POST",
+      headers: { cookie: par },
+      redirect: "manual",
+    });
+
+    // Reusar o MESMO cookie antigo (como faria alguem com uma copia dele)
+    // nao pode voltar a funcionar so porque o navegador ainda o tem.
+    const depois = await fetch(`${base}/infraestrutura`, {
+      headers: { cookie: par },
+      redirect: "manual",
+    });
+    assert.equal(depois.status, 302, "sessao encerrada no servidor nao pode ser reusada");
+    assert.equal(depois.headers.get("location"), "/entrar");
+  });
+});

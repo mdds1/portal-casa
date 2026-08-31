@@ -1,10 +1,15 @@
 import type { Router } from "express";
 import express from "express";
 import type Database from "better-sqlite3";
-import { conferirSenha } from "../auth/senha.js";
+import { conferirSenha, gerarHash } from "../auth/senha.js";
 import { abrirSessao, assinar, fecharSessao, verificarAssinatura } from "../auth/sessao.js";
 import { COOKIE } from "../auth/middleware.js";
-import { escapar } from "../html/base.js";
+
+// Hash-isca fixo: quando o login nao existe, roda-se o scrypt contra ele mesmo
+// assim, para que o tempo de resposta seja igual ao caminho de "usuario existe,
+// senha errada". Gerado uma unica vez (nao a cada requisicao) para nao pagar
+// o custo do scrypt no import alem do necessario para a comparacao.
+const HASH_ISCA = gerarHash("hash-isca-nunca-bate-com-senha-nenhuma");
 
 export function rotasLogin(db: Database.Database, segredo: string): Router {
   const r = express.Router();
@@ -29,7 +34,11 @@ export function rotasLogin(db: Database.Database, segredo: string): Router {
     const u = db.prepare("SELECT id, senha FROM usuarios WHERE login = ? AND ativo = 1")
       .get(login) as { id: number; senha: string } | undefined;
 
-    const ok = !!u && conferirSenha(senha, u.senha);
+    // Roda conferirSenha nos dois casos, mesmo quando o login nao existe:
+    // se so rodasse quando `u` existe, o curto-circuito do "&&" pouparia o
+    // scrypt para logins inexistentes, e a diferenca de tempo (dezenas de ms)
+    // entregaria de bandeja quais logins existem no banco.
+    const ok = conferirSenha(senha, u?.senha ?? HASH_ISCA) && !!u;
     db.prepare("INSERT INTO acoes_log (quando,usuario,verbo,alvo,ok) VALUES (?,?,?,?,?)")
       .run(new Date().toISOString(), login, "entrar", "portal", ok ? 1 : 0);
 
@@ -45,8 +54,18 @@ export function rotasLogin(db: Database.Database, segredo: string): Router {
   r.post("/sair", (req, res) => {
     const bruto = req.headers.cookie?.match(/portal_sessao=([^;]+)/)?.[1];
     if (bruto) {
-      const id = verificarAssinatura(decodeURIComponent(bruto), segredo);
-      if (id) fecharSessao(db, id);
+      // Mesma protecao do lerCookie em auth/middleware.ts: um cookie
+      // malformado nao pode derrubar /sair com 500.
+      let decodificado: string | null;
+      try {
+        decodificado = decodeURIComponent(bruto);
+      } catch {
+        decodificado = null;
+      }
+      if (decodificado) {
+        const id = verificarAssinatura(decodificado, segredo);
+        if (id) fecharSessao(db, id);
+      }
     }
     res.clearCookie(COOKIE);
     res.redirect("/entrar");

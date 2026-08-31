@@ -16,7 +16,17 @@ function lerCookie(cabecalho: string | undefined, nome: string): string | null {
   if (!cabecalho) return null;
   for (const parte of cabecalho.split(";")) {
     const [k, ...resto] = parte.trim().split("=");
-    if (k === nome) return decodeURIComponent(resto.join("="));
+    if (k === nome) {
+      // Um cookie malformado (ex.: "%") faz decodeURIComponent lancar
+      // URIError. Sem este try/catch, isto derrubava TODA rota que passa
+      // por carregarSessao (montado em app.use antes de tudo) com 500 --
+      // inclusive /entrar, sem caminho de recuperacao pela interface.
+      try {
+        return decodeURIComponent(resto.join("="));
+      } catch {
+        return null;
+      }
+    }
   }
   return null;
 }
