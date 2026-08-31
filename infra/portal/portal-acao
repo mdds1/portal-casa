@@ -44,14 +44,48 @@ case "$TIPO" in
   *)  echo "tipo invalido"; exit 2 ;;
 esac
 
+# Quanto tempo esperar o guest sair sozinho. Os padroes do Proxmox (60 s no
+# pct, 180 s no qm) sao MAIORES que o limite do SSH do portal (20 s,
+# src/acoes/wrapper.ts): sem este --timeout o portal mata a conexao antes de
+# saber o que aconteceu e grava ok=0 numa acao que talvez tenha dado certo.
+# Com ele, o comando devolve um codigo de saida de verdade dentro da janela.
+# Tem que continuar CONFORTAVELMENTE menor que o limite do SSH.
+LIMITE=12
+
+# --forceStop 0 no pct e deliberado: o padrao (1) mata o container quando o
+# tempo acaba, e ai o portal grava "ok" para o que foi, na pratica, um puxao de
+# tomada. Preferimos falhar e dizer a verdade -- quem quer forcar decide isso
+# olhando, nao por omissao.
+executar() {
+  # RC tem que ser capturado no proprio "||": depois de um if, $? e o status do
+  # if, que e sempre 0, e a falha voltaria como "codigo 0".
+  RC=0
+  $FERRAMENTA "$@" >/dev/null 2>&1 || RC=$?
+  if [ "$RC" -eq 0 ]; then
+    return 0
+  fi
+  # Nada de "|| true": engolir a falha faz o acoes_log -- a unica testemunha de
+  # que uma maquina real mudou de estado -- afirmar sucesso numa acao que nao
+  # aconteceu. Um guest que se recusa a desligar sai por aqui.
+  echo "falhou: $FERRAMENTA $* (codigo $RC)"
+  exit 4
+}
+
 case "$VERBO" in
-  start)    $FERRAMENTA start "$ID"    >/dev/null 2>&1 || true ;;
-  shutdown) $FERRAMENTA shutdown "$ID" >/dev/null 2>&1 || true ;;
-  reboot)   $FERRAMENTA reboot "$ID"   >/dev/null 2>&1 || true ;;
-  status)   ;;
+  start)    executar start "$ID" ;;
+  shutdown)
+    if [ "$FERRAMENTA" = pct ]; then
+      executar shutdown "$ID" --timeout "$LIMITE" --forceStop 0
+    else
+      executar shutdown "$ID" --timeout "$LIMITE"
+    fi
+    ;;
+  reboot)   executar reboot "$ID" --timeout "$LIMITE" ;;
   *) echo "verbo invalido"; exit 2 ;;
 esac
 
-# Sempre devolve o estado depois da acao, para o portal nao precisar de uma
-# segunda chamada so para saber o que aconteceu.
+# So se chegou aqui: a acao deu certo. Devolve o estado depois dela, para o
+# portal nao precisar de uma segunda chamada so para saber o que aconteceu.
+# Este "status" e leitura interna, nao um verbo que o portal possa pedir -- a
+# lista de verbos aceitos e exatamente a de src/acoes/tipos.ts.
 $FERRAMENTA status "$ID" | awk '{print $2}'
