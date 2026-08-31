@@ -14,7 +14,7 @@ function gb(bytes: number): string {
 // Os botoes oferecidos sao exatamente os verbos que podeAgir aprovaria: a
 // tela pergunta a mesma funcao que a rota /acao vai consultar de novo, em
 // vez de reimplementar a regra (e arriscar as duas divergirem).
-function botoesDaMaquina(
+export function botoesDaMaquina(
   db: Database.Database,
   papel: string,
   vmid: number,
@@ -33,7 +33,7 @@ function botoesDaMaquina(
 </form>`).join("");
 }
 
-function botaoDoHost(db: Database.Database, papel: string, csrf: string): string {
+export function botaoDoHost(db: Database.Database, papel: string, csrf: string): string {
   if (!podeAgir(db, papel, { tipo: "host" }, "shutdown").permitido) return "";
   return `<form method="post" action="/acao" class="acao perigo">
 <input type="hidden" name="alvo" value="host">
