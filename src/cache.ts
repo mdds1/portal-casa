@@ -35,13 +35,20 @@ export class Cache<T> {
   }
 
   private async atualizar(): Promise<void> {
-    const r = await this.buscar();
-    this.buscadoEm = this.agora();
-    if (r.ok) {
-      this.ultimoBom = { dado: r.dado, em: r.em };
-      this.ultimoErro = null;
-    } else {
-      this.ultimoErro = r.erro;
+    try {
+      const r = await this.buscar();
+      this.buscadoEm = this.agora();
+      if (r.ok) {
+        this.ultimoBom = { dado: r.dado, em: r.em };
+        this.ultimoErro = null;
+      } else {
+        this.ultimoErro = r.erro;
+      }
+    } catch (erro) {
+      // A fonte lancou excecao em vez de devolver Resultado. Trata como falha,
+      // mantendo o ultimoBom se existir (degradacao graciosa), e registra o erro.
+      this.buscadoEm = this.agora();
+      this.ultimoErro = erro instanceof Error ? erro.message : String(erro);
     }
   }
 }

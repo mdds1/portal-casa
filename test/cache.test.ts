@@ -55,3 +55,36 @@ test("chamadas simultaneas nao disparam duas buscas", async () => {
   await Promise.all([c.obter(), c.obter(), c.obter()]);
   assert.equal(chamadas, 1);
 });
+
+test("excecao logo na primeira busca devolve nada, sem lancar", async () => {
+  const c = new Cache<string>(async () => {
+    throw new Error("conexao perdida");
+  }, 15000);
+  const i = await c.obter();
+  assert.equal(i.dado, null);
+  assert.equal(i.erro, "conexao perdida");
+  assert.equal(i.desatualizado, true);
+});
+
+test("excecao depois de sucesso mantem o ultimo valor bom, marcado", async () => {
+  let lancae = false;
+  let relogio = 1000;
+  const buscar = async (): Promise<Resultado<string>> => {
+    if (lancae) {
+      throw new Error("conexao caiu");
+    }
+    return bom("valor-bom");
+  };
+  const c = new Cache<string>(buscar, 15000, () => relogio);
+
+  const primeiro = await c.obter();
+  assert.equal(primeiro.dado, "valor-bom");
+  assert.equal(primeiro.desatualizado, false);
+
+  lancae = true;
+  relogio += 16000;
+  const segundo = await c.obter();
+  assert.equal(segundo.dado, "valor-bom", "o dado velho sobrevive mesmo quando a fonte lanca");
+  assert.equal(segundo.desatualizado, true, "mas marcado como desatualizado");
+  assert.equal(segundo.erro, "conexao caiu");
+});
