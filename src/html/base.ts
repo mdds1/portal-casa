@@ -10,6 +10,21 @@ export function escapar(v: unknown): string {
     .replaceAll("'", "&#39;");
 }
 
+// A acao acontece num POST e termina num redirect: sem isto, "desligou" e
+// "nao desligou" chegam ao operador exatamente iguais -- a mesma pagina, em
+// silencio. O par (acao, alvo) vem da query, ou seja, e entrada do usuario:
+// passa por escapar como qualquer outra saida.
+export function faixaDeAviso(acao: unknown, alvo: unknown): string {
+  const nome = alvo === undefined || alvo === null ? "" : String(alvo);
+  const onde = nome ? ` em <strong>${escapar(nome)}</strong>` : "";
+  if (acao === "falha")
+    return `<p class="faixa ruim">A acao${onde} <strong>falhou</strong>.
+      Nada garante que a maquina mudou de estado — confira o registro de acoes.</p>`;
+  if (acao === "ok")
+    return `<p class="faixa boa">Acao${onde} enviada com sucesso.</p>`;
+  return "";
+}
+
 export const ESTILO = `
 :root { color-scheme: light dark; --fundo:#f6f6f7; --cartao:#fff; --borda:#e2e2e5; --texto:#1a1a1c; --fraco:#6b6b70; }
 @media (prefers-color-scheme: dark) {
@@ -57,6 +72,9 @@ button { font:inherit; padding:.35rem .7rem; border-radius:6px;
 .entrada button { margin-top:.25rem; padding:.55rem; }
 .erro { margin:0; padding:.5rem .6rem; border-radius:6px; font-size:.85rem;
   background:#d13b3b22; border:1px solid #d13b3b66; }
+.faixa { margin:0 0 1rem; padding:.6rem .75rem; border-radius:8px; font-size:.9rem; }
+.faixa.ruim { background:#d13b3b22; border:1px solid #d13b3b66; }
+.faixa.boa { background:#2e9e4f22; border:1px solid #2e9e4f66; }
 table { border-collapse:collapse; width:100%; background:var(--cartao);
   border:1px solid var(--borda); border-radius:10px; }
 th,td { text-align:left; padding:.5rem .65rem; border-bottom:1px solid var(--borda); }

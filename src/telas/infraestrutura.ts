@@ -1,6 +1,6 @@
 import type { RequestHandler } from "express";
 import { listarMaquinas, poderDoPapel } from "../db/inventario.js";
-import { layout, escapar } from "../html/base.js";
+import { layout, escapar, faixaDeAviso } from "../html/base.js";
 import { tokenCsrf } from "../auth/csrf.js";
 import { podeAgir } from "../acoes/permissao.js";
 import { VERBOS, ROTULOS, type Alvo } from "../acoes/tipos.js";
@@ -78,7 +78,7 @@ export function rotaInfraestrutura(deps: DepsTela): RequestHandler {
       titulo: "Infraestrutura",
       poder,
       atual: "/infraestrutura",
-      corpoHtml: `<h1>Infraestrutura</h1>${aviso}
+      corpoHtml: `<h1>Infraestrutura</h1>${faixaDeAviso(req.query.acao, req.query.alvo)}${aviso}
 <div style="overflow-x:auto">
 <table>
 <thead><tr><th>ID</th><th>Maquina</th><th>Estado</th><th>IP</th><th>Memoria</th><th>Volta sozinha</th><th>Acoes</th></tr></thead>

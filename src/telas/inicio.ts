@@ -4,7 +4,7 @@ import type { Cache } from "../cache.js";
 import type { RecursoPve } from "../fontes/proxmox.js";
 import { listarMaquinas, listarServicos, poderDoPapel } from "../db/inventario.js";
 import { checarPorta } from "../fontes/porta.js";
-import { layout, escapar } from "../html/base.js";
+import { layout, escapar, faixaDeAviso } from "../html/base.js";
 import { cartao, linha } from "../html/cartao.js";
 import { tokenCsrf } from "../auth/csrf.js";
 import { VERBOS, ROTULOS } from "../acoes/tipos.js";
@@ -94,7 +94,7 @@ export function rotaInicio(deps: DepsTela): RequestHandler {
         titulo: "Inicio",
         poder,
         atual: "/",
-        corpoHtml: `<h1>Inicio</h1><div class="grade">${aviso}${cartoes.join("")}</div>`,
+        corpoHtml: `<h1>Inicio</h1>${faixaDeAviso(req.query.acao, req.query.alvo)}<div class="grade">${aviso}${cartoes.join("")}</div>`,
       })
     );
   };

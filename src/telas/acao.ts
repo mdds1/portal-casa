@@ -6,7 +6,7 @@ import { acionar, type Executor } from "../acoes/wrapper.js";
 import { registrar } from "../acoes/registro.js";
 import { conferirCsrf } from "../auth/csrf.js";
 import { poderDoPapel } from "../db/inventario.js";
-import { escapar, layout } from "../html/base.js";
+import { escapar, layout, ESTILO } from "../html/base.js";
 
 export type DepsAcao = { db: Database.Database; segredoSessao: string; exec: Executor };
 
@@ -80,6 +80,25 @@ ${aviso}
   });
 }
 
+// Pagina do pior caso: a acao foi enviada e o registro falhou. Nao usa
+// layout() de proposito — ele volta ao banco para descobrir o poder do papel, e
+// o banco acabou de falhar.
+function paginaSemRegistro(nome: string, verbo: Verbo, ok: boolean): string {
+  return `<!doctype html><html lang="pt-BR"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Acao nao registrada — Portal da Casa</title>
+<style>${ESTILO}</style>
+<main>
+<h1>Acao enviada, mas nao registrada</h1>
+<p class="faixa ruim">O comando <strong>${escapar(ROTULOS[verbo])}</strong> em
+<strong>${escapar(nome)}</strong> foi <strong>enviado ao host</strong>
+(resposta: ${ok ? "sucesso" : "falha"}), mas o portal nao conseguiu gravar isso
+no registro de acoes. Confira o estado da maquina a mao: esta acao nao aparece
+no historico.</p>
+<p><a href="/">Voltar ao inicio</a></p>
+</main></html>`;
+}
+
 export function rotaAcao(deps: DepsAcao): RequestHandler {
   return async (req, res) => {
     const sessao = req.sessao!;
@@ -118,10 +137,31 @@ export function rotaAcao(deps: DepsAcao): RequestHandler {
       return res.type("html").send(telaConfirmacao(deps, req, corpo, alvo, v));
     }
 
+    const nome = nomeDoAlvo(alvo);
     const r = await acionar(deps.exec, alvo, v);
-    registrar(deps.db, usuario, v, nomeDoAlvo(alvo), r.ok, r.ok ? r.dado : r.erro);
-    return res.redirect(
-      alvo.tipo === "host" ? "/" : (corpo.voltar === "infra" ? "/infraestrutura" : "/")
-    );
+    const detalhe = r.ok ? r.dado : r.erro;
+
+    // A partir daqui a maquina JA foi acionada. Se o registro estourar (banco
+    // cheio, tabela ausente, arquivo somente-leitura), deixar o erro subir dava
+    // um 500 generico: maquina mexida de verdade, zero rastro na auditoria, e o
+    // operador sem saber se a acao aconteceu. O pior caso ainda tem que gritar
+    // em algum lugar — console.error é o log do servico — e dizer a verdade na
+    // tela.
+    try {
+      registrar(deps.db, usuario, v, nome, r.ok, detalhe);
+    } catch (e) {
+      console.error(
+        `[acao] ACAO EXECUTADA SEM REGISTRO usuario=${usuario} verbo=${v} alvo=${nome} ok=${r.ok} detalhe=${detalhe}`,
+        e
+      );
+      return res.status(500).type("html").send(paginaSemRegistro(nome, v, r.ok));
+    }
+
+    // Sem este aviso, "desligou" e "nao desligou" terminam na mesma pagina
+    // silenciosa. O nome do alvo vem do inventario, nao do formulario, mas quem
+    // desenha a faixa escapa assim mesmo: a query e editavel pelo navegador.
+    const destino = alvo.tipo === "host" ? "/" : (corpo.voltar === "infra" ? "/infraestrutura" : "/");
+    const q = new URLSearchParams({ acao: r.ok ? "ok" : "falha", alvo: nome });
+    return res.redirect(`${destino}?${q.toString()}`);
   };
 }

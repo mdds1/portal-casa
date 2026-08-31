@@ -5,7 +5,7 @@ import { semear } from "../src/db/semente.js";
 import { gerarHash } from "../src/auth/senha.js";
 import { criarApp } from "../src/app.js";
 import { Cache } from "../src/cache.js";
-import { bom } from "../src/fontes/tipos.js";
+import { bom, ruim } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
 import type { Executor } from "../src/acoes/wrapper.js";
 
@@ -245,5 +245,82 @@ test("a tela de confirmacao escapa o \"voltar\" refletido do POST", async () => 
       html.includes("&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"),
       "o valor escapado precisa aparecer no lugar do cru"
     );
+  } finally { s.close(); }
+});
+
+// --- Achado 3: a maquina foi acionada, mas o registro falhou ---------------
+test("se o registro falhar depois de acionar, o operador ve que a acao foi enviada e nao registrada", async () => {
+  let chamou = false;
+  const { db, s, base } = montar(async () => { chamou = true; return bom("running"); });
+  const erros: unknown[][] = [];
+  const original = console.error;
+  console.error = (...a: unknown[]) => { erros.push(a); };
+  try {
+    const c = await entrar(base, "matheus", "s1");
+    const t = await csrfDaPagina(base, c);
+    db.exec("DROP TABLE acoes_log");
+    const r = await postar(base, c, { alvo: "201", verbo: "start", csrf: t, confirmado: "1" });
+    assert.equal(chamou, true, "o comando foi mesmo enviado ao host");
+    const html = await r.text();
+    assert.ok(!/Algo deu errado/i.test(html), "nao pode cair no 500 generico do Express");
+    assert.match(html, /enviada/i);
+    assert.match(html, /registr/i);
+    assert.ok(
+      erros.some((a) => a.join(" ").includes("start") && a.join(" ").includes("ct:201") && a.join(" ").includes("matheus")),
+      "o console.error precisa carregar verbo, alvo e usuario: e o unico rastro que sobrou"
+    );
+  } finally { console.error = original; s.close(); }
+});
+
+// --- Triagem: avisar o operador quando a acao falha ------------------------
+test("acao que falha manda o operador de volta com um aviso, nao em silencio", async () => {
+  const { db, s, base } = montar(async () => ruim("falhou: pct shutdown 201 (codigo 1)"));
+  try {
+    const c = await entrar(base, "matheus", "s1");
+    const t = await csrfDaPagina(base, c);
+    const r = await postar(base, c, { alvo: "201", verbo: "start", csrf: t, confirmado: "1" });
+    assert.equal(r.status, 302);
+    const destino = r.headers.get("location") ?? "";
+    assert.match(destino, /acao=falha/, "o redirect precisa carregar o aviso de falha");
+    const log = db.prepare("SELECT ok FROM acoes_log ORDER BY id DESC LIMIT 1").get() as { ok: number };
+    assert.equal(log.ok, 0);
+
+    const html = await (await fetch(base + destino, { headers: { cookie: c } })).text();
+    assert.match(html, /falhou/i, "a tela precisa mostrar a faixa de aviso");
+  } finally { s.close(); }
+});
+
+test("acao que da certo volta com aviso de sucesso", async () => {
+  const { s, base } = montar(async () => bom("running"));
+  try {
+    const c = await entrar(base, "matheus", "s1");
+    const t = await csrfDaPagina(base, c);
+    const r = await postar(base, c, { alvo: "201", verbo: "start", csrf: t, confirmado: "1" });
+    assert.equal(r.status, 302);
+    assert.match(r.headers.get("location") ?? "", /acao=ok/);
+  } finally { s.close(); }
+});
+
+test("a faixa de aviso escapa o alvo vindo da query", async () => {
+  const { s, base } = montar(async () => bom("running"));
+  try {
+    const c = await entrar(base, "matheus", "s1");
+    const bruto = `"><script>alert(1)</script>`;
+    const url = `${base}/?acao=falha&alvo=${encodeURIComponent(bruto)}`;
+    const html = await (await fetch(url, { headers: { cookie: c } })).text();
+    assert.ok(!html.includes(bruto), "o valor cru nao pode aparecer na pagina");
+    assert.match(html, /&lt;script&gt;/);
+  } finally { s.close(); }
+});
+
+test("a faixa de aviso tambem aparece na Infraestrutura, escapada", async () => {
+  const { s, base } = montar(async () => bom("running"));
+  try {
+    const c = await entrar(base, "matheus", "s1");
+    const bruto = `"><script>alert(1)</script>`;
+    const url = `${base}/infraestrutura?acao=falha&alvo=${encodeURIComponent(bruto)}`;
+    const html = await (await fetch(url, { headers: { cookie: c } })).text();
+    assert.match(html, /falhou/i);
+    assert.ok(!html.includes(bruto));
   } finally { s.close(); }
 });
