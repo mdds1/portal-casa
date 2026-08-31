@@ -1,5 +1,5 @@
 import type { RequestHandler } from "express";
-import { listarMaquinas } from "../db/inventario.js";
+import { listarMaquinas, poderDoPapel } from "../db/inventario.js";
 import { layout, escapar } from "../html/base.js";
 import type { DepsTela } from "./inicio.js";
 
@@ -11,6 +11,7 @@ export function rotaInfraestrutura(deps: DepsTela): RequestHandler {
   return async (req, res) => {
     const papel = req.sessao!.papel;
     const maquinas = listarMaquinas(deps.db, papel);
+    const poder = poderDoPapel(deps.db, papel);
     const pve = await deps.caches.pve.obter();
 
     const linhas = maquinas.map((m) => {
@@ -34,7 +35,7 @@ export function rotaInfraestrutura(deps: DepsTela): RequestHandler {
 
     res.type("html").send(layout({
       titulo: "Infraestrutura",
-      papel,
+      poder,
       atual: "/infraestrutura",
       corpoHtml: `<h1>Infraestrutura</h1>${aviso}
 <div style="overflow-x:auto">

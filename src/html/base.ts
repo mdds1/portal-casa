@@ -45,21 +45,25 @@ tr:last-child td { border-bottom:0; }
 small { color:var(--fraco); }
 `;
 
-type ItemMenu = { href: string; rotulo: string; papel: string };
+// Poder minimo, na mesma escala da tabela papeis (admin=100, casa=10) --
+// nao o nome do papel. E a mesma mecanica que FILTRO (db/inventario.ts) e
+// exigirPapel (auth/middleware.ts) usam, entao um papel novo com poder alto
+// abre a rota em exigirPapel E aparece no menu, sem exigir mexer aqui.
+type ItemMenu = { href: string; rotulo: string; poderMinimo: number };
 
 const MENU: ItemMenu[] = [
-  { href: "/", rotulo: "Inicio", papel: "casa" },
-  { href: "/infraestrutura", rotulo: "Infraestrutura", papel: "admin" },
+  { href: "/", rotulo: "Inicio", poderMinimo: 10 },
+  { href: "/infraestrutura", rotulo: "Infraestrutura", poderMinimo: 100 },
 ];
 
 export function layout(o: {
   titulo: string;
-  papel: string;
+  poder: number;
   atual: string;
   corpoHtml: string; // HTML pronto (cada pagina monta seu conteudo com escapar)
 }): string {
   const itens = MENU
-    .filter((i) => o.papel === "admin" || i.papel === "casa")
+    .filter((i) => o.poder >= i.poderMinimo)
     .map((i) => `<a href="${i.href}"${i.href === o.atual ? ' aria-current="page"' : ""}>${escapar(i.rotulo)}</a>`)
     .join("");
 

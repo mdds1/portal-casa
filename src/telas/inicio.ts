@@ -2,19 +2,34 @@ import type { RequestHandler } from "express";
 import type Database from "better-sqlite3";
 import type { Cache } from "../cache.js";
 import type { RecursoPve } from "../fontes/proxmox.js";
-import type { EstadoHa } from "../fontes/homeassistant.js";
-import { listarServicos } from "../db/inventario.js";
+import { listarServicos, poderDoPapel } from "../db/inventario.js";
 import { checarPorta } from "../fontes/porta.js";
-import { layout } from "../html/base.js";
+import { layout, escapar } from "../html/base.js";
 import { cartao, linha } from "../html/cartao.js";
 
-export type Caches = { pve: Cache<RecursoPve[]>; ha: Cache<EstadoHa[]> };
+export type Caches = { pve: Cache<RecursoPve[]> };
 export type DepsTela = { db: Database.Database; caches: Caches };
+
+// Aceita so http/https: um esquema como "javascript:" nao tem aspas nem
+// sinais de menor, entao atravessa o escapar() intacto e ainda executa ao
+// ser clicado. Escapar sozinho nao basta -- exige o par: validar o esquema
+// e so entao escapar o valor.
+function linkServico(url: string): string {
+  let esquema: string;
+  try {
+    esquema = new URL(url).protocol;
+  } catch {
+    return "";
+  }
+  if (esquema !== "http:" && esquema !== "https:") return "";
+  return `<dt>Endereco</dt><dd><a href="${escapar(url)}">abrir</a></dd>`;
+}
 
 export function rotaInicio(deps: DepsTela): RequestHandler {
   return async (req, res) => {
     const papel = req.sessao!.papel;
     const servicos = listarServicos(deps.db, papel);
+    const poder = poderDoPapel(deps.db, papel);
     const pve = await deps.caches.pve.obter();
 
     // As checagens de porta correm juntas: em serie, oito servicos com dois
@@ -36,7 +51,7 @@ export function rotaInicio(deps: DepsTela): RequestHandler {
         linha("Estado", r === null ? "sem checagem" : r.ok ? "no ar" : "sem resposta"),
         s.porta ? linha("Porta", s.porta) : "",
         maquina ? linha("Maquina", `${maquina.nome} (${maquina.estado})`) : "",
-        s.url ? `<dt>Endereco</dt><dd><a href="${s.url}">abrir</a></dd>` : "",
+        s.url ? linkServico(s.url) : "",
       ].filter(Boolean);
       return cartao({ titulo: s.nome, estado, linhasHtml, nota: s.descricao });
     });
@@ -55,7 +70,7 @@ export function rotaInicio(deps: DepsTela): RequestHandler {
     res.type("html").send(
       layout({
         titulo: "Inicio",
-        papel,
+        poder,
         atual: "/",
         corpoHtml: `<h1>Inicio</h1><div class="grade">${aviso}${cartoes.join("")}</div>`,
       })

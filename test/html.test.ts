@@ -24,14 +24,14 @@ test("nome de maquina malicioso nao vira HTML no cartao", () => {
   assert.ok(h.includes("&lt;img"));
 });
 
-test("o menu esconde Infraestrutura do papel casa", () => {
-  const dela = layout({ titulo: "t", papel: "casa", atual: "/", corpoHtml: "" });
+test("o menu esconde Infraestrutura de quem tem poder de casa (10)", () => {
+  const dela = layout({ titulo: "t", poder: 10, atual: "/", corpoHtml: "" });
   assert.ok(!dela.includes("/infraestrutura"));
-  const dele = layout({ titulo: "t", papel: "admin", atual: "/", corpoHtml: "" });
+  const dele = layout({ titulo: "t", poder: 100, atual: "/", corpoHtml: "" });
   assert.ok(dele.includes("/infraestrutura"));
 });
 
 test("o layout declara viewport, porque a tela dela e o celular", () => {
-  assert.ok(layout({ titulo: "t", papel: "casa", atual: "/", corpoHtml: "" })
+  assert.ok(layout({ titulo: "t", poder: 10, atual: "/", corpoHtml: "" })
     .includes('name="viewport"'));
 });

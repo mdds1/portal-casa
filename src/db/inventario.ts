@@ -41,3 +41,12 @@ export function listarServicos(db: Database.Database, papel: string): Servico[] 
     .prepare(`SELECT * FROM servicos WHERE ${FILTRO} ORDER BY nome`)
     .all(papel) as Servico[];
 }
+
+// Mesma fonte de verdade que FILTRO e exigirPapel: o poder vem sempre do
+// banco, nunca de uma comparacao de string com o nome do papel.
+export function poderDoPapel(db: Database.Database, papel: string): number {
+  const linha = db.prepare("SELECT poder FROM papeis WHERE nome = ?").get(papel) as
+    | { poder: number }
+    | undefined;
+  return linha?.poder ?? 0;
+}

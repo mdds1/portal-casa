@@ -7,7 +7,6 @@ import { criarApp } from "../src/app.js";
 import { Cache } from "../src/cache.js";
 import { bom, ruim, type Resultado } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
-import type { EstadoHa } from "../src/fontes/homeassistant.js";
 
 const RECURSOS: RecursoPve[] = [
   { tipo: "qemu", vmid: 301, nome: "floripaot", estado: "running", cpu: 0.02, memoria: 2e9, memoriaMax: 8e9 },
@@ -16,7 +15,6 @@ const RECURSOS: RecursoPve[] = [
 
 async function servidor(caches: {
   pve?: () => Promise<Resultado<RecursoPve[]>>;
-  ha?: () => Promise<Resultado<EstadoHa[]>>;
 } = {}) {
   const db = abrirBanco(":memory:");
   semear(db);
@@ -29,7 +27,6 @@ async function servidor(caches: {
     segredoSessao: "teste",
     caches: {
       pve: new Cache(caches.pve ?? (async () => bom(RECURSOS))),
-      ha: new Cache(caches.ha ?? (async () => bom([] as EstadoHa[]))),
     },
   });
   const s = app.listen(0);

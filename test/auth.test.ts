@@ -45,7 +45,6 @@ async function comServidor(fn: (base: string, db: Database.Database) => Promise<
     segredoSessao: "teste",
     caches: {
       pve: new Cache(async () => bom([])),
-      ha: new Cache(async () => bom([])),
     },
   }).listen(0);
   const porta = (servidor.address() as { port: number }).port;
