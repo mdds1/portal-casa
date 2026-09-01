@@ -1,0 +1,7 @@
+[Unit]
+Description=Backup semanal do parque da casa
+After=pve-guests.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/backup-casa

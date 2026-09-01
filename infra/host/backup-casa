@@ -1,0 +1,91 @@
+#!/usr/bin/python3
+"""Executa o trabalho de backup `casa-diario` e escreve um relatorio.
+
+Por que nao usamos o agendador do Proxmox: ele nao recupera execucao perdida,
+e este host fica desligado em horarios irregulares (03:26-12:23 em 01/09,
+00:03-18:40 em 28/08, 23:47-07:14 em 26/08, sem agendamento — e manual). Com
+backup semanal isso significaria semanas sem copia, em silencio. O systemd
+timer que chama este script usa Persistent=true e roda no boot seguinte.
+
+O `vzdump` nao aceita disparar um job por id, entao lemos a definicao de
+/cluster/backup e montamos a chamada. O jobs.cfg segue sendo a fonte unica:
+mudar a lista de maquinas la muda o que este script faz.
+"""
+import json
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+JOB = "casa-diario"
+RELATORIO = Path("/var/lib/portal/backup-casa.txt")
+VERIFICADOR = "/usr/local/sbin/verifica-backup"
+
+
+def definicao():
+    saida = subprocess.run(
+        ["pvesh", "get", "/cluster/backup", "--output-format", "json"],
+        capture_output=True, text=True, check=True,
+    )
+    for job in json.loads(saida.stdout):
+        if job.get("id") == JOB:
+            return job
+    raise SystemExit(f"backup-casa: trabalho '{JOB}' nao existe em /cluster/backup")
+
+
+def comando(job):
+    # O vzdump recebe os vmid como argumento POSICIONAL; `--vmid` e recusado
+    # com "Unknown option". A mensagem de uso (`vzdump {<vmid>} [OPTIONS]`) diz
+    # isso, mas e facil ler como se fosse uma opcao nomeada.
+    args = ["vzdump", str(job["vmid"]), "--storage", job["storage"]]
+    if job.get("mode"):
+        args += ["--mode", job["mode"]]
+    if job.get("compress"):
+        args += ["--compress", str(job["compress"])]
+    if job.get("notes-template"):
+        args += ["--notes-template", job["notes-template"]]
+    poda = job.get("prune-backups")
+    if isinstance(poda, dict) and poda:
+        args += ["--prune-backups", ",".join(f"{k}={v}" for k, v in sorted(poda.items()))]
+    return args
+
+
+def descobertos():
+    """Guests fora do backup. Backup que roda direito mas esquece uma maquina
+    falha do mesmo jeito, so que sem erro — por isso entra no mesmo relatorio."""
+    saida = subprocess.run([VERIFICADOR], capture_output=True, text=True)
+    return saida.stdout.strip()
+
+
+def main():
+    inicio = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    job = definicao()
+    args = comando(job)
+
+    execucao = subprocess.run(args, capture_output=True, text=True)
+    codigo = execucao.returncode
+    resultado = "ok" if codigo == 0 else f"FALHOU (codigo {codigo})"
+
+    linhas = [
+        f"ultima execucao: {inicio}",
+        f"maquinas: {job['vmid']}",
+        f"resultado: {resultado}",
+    ]
+
+    fora = descobertos()
+    if fora:
+        linhas += ["", "guests SEM backup:", fora]
+
+    saida_bruta = (execucao.stdout or "") + (execucao.stderr or "")
+    linhas += ["", "--- ultimas linhas ---"] + saida_bruta.strip().splitlines()[-20:]
+
+    RELATORIO.parent.mkdir(parents=True, exist_ok=True)
+    RELATORIO.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+
+    if codigo != 0:
+        print(saida_bruta.strip()[-2000:], file=sys.stderr)
+    return codigo
+
+
+if __name__ == "__main__":
+    sys.exit(main())

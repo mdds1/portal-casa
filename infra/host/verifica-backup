@@ -1,0 +1,77 @@
+#!/usr/bin/python3
+"""Reporta guests do Proxmox que nao estao em nenhum trabalho de backup.
+
+Por que existe: a lista `vmid` do job e estatica. Em 30/08/2026 o Jellyfin
+migrou do CT 101 para o CT 201 e o job continuou apontando para o 101 — o
+container vivo ficou dois dias sem backup e nada avisou.
+
+Exclusoes deliberadas vivem em /etc/verifica-backup.excecoes, um vmid por
+linha, `#` comenta. Sem esse arquivo o alerta viraria ruido permanente por
+causa da VM 110 (bancada), e ruido permanente se aprende a ignorar.
+
+Saida vazia e codigo 0 quando tudo esta coberto.
+Uma linha "<vmid> <nome> sem backup" por descoberto e codigo 1 quando falta.
+"""
+import json
+import subprocess
+import sys
+
+EXCECOES = "/etc/verifica-backup.excecoes"
+
+
+def pvesh(caminho, *extra):
+    saida = subprocess.run(
+        ["pvesh", "get", caminho, "--output-format", "json", *extra],
+        capture_output=True, text=True, check=True,
+    )
+    return json.loads(saida.stdout)
+
+
+def cobertos():
+    """vmids citados por qualquer trabalho de backup, ativo ou nao."""
+    ids = set()
+    for job in pvesh("/cluster/backup"):
+        for pedaco in str(job.get("vmid", "")).split(","):
+            pedaco = pedaco.strip()
+            if pedaco.isdigit():
+                ids.add(int(pedaco))
+    return ids
+
+
+def excluidos():
+    """vmids deliberadamente fora do backup."""
+    ids = set()
+    try:
+        with open(EXCECOES, encoding="utf-8") as arq:
+            for linha in arq:
+                linha = linha.split("#", 1)[0].strip()
+                if linha.isdigit():
+                    ids.add(int(linha))
+    except FileNotFoundError:
+        pass
+    return ids
+
+
+def main():
+    try:
+        com_backup = cobertos()
+        sem_motivo = excluidos()
+        guests = pvesh("/cluster/resources", "--type", "vm")
+    except (subprocess.CalledProcessError, json.JSONDecodeError) as erro:
+        print(f"verifica-backup: nao consegui consultar o Proxmox: {erro}", file=sys.stderr)
+        return 2
+
+    descobertos = []
+    for guest in guests:
+        vmid = guest.get("vmid")
+        if vmid is None or vmid in com_backup or vmid in sem_motivo:
+            continue
+        descobertos.append((vmid, guest.get("name") or "sem-nome"))
+
+    for vmid, nome in sorted(descobertos):
+        print(f"{vmid} {nome} sem backup")
+    return 1 if descobertos else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,6 @@
+# Guests deliberadamente fora do backup. Um vmid por linha.
+# Cada linha precisa de um motivo — excecao sem motivo vira excecao esquecida.
+
+# VM 110 (tfs-server): bancada de desenvolvimento, sem proposito de producao.
+# A producao do FloripaOT e a VM 301, que esta coberta.
+110

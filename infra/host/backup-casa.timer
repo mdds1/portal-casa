@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup semanal — sexta 01:00, ou no proximo boot se a maquina estava desligada
+
+[Timer]
+OnCalendar=Fri 01:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
