@@ -43,7 +43,7 @@ const SERVICOS: LinhaServico[] = [
   [111, "Home Assistant", "Automacao, so pela Tailscale", 80, "192.168.15.8", "https://ha.dinizismo.com.br", "Casa", "Automacao", 1, "casa"],
 
   // Infraestrutura
-  [110, "Proxmox", "Interface do hipervisor", 8006, "192.168.15.200", null, "Infraestrutura", "Plataforma", 1, "admin"],
+  [110, "Proxmox", "Interface do hipervisor", 8006, "192.168.15.200", "https://192.168.15.200:8006", "Infraestrutura", "Plataforma", 1, "admin"],
   [103, "nginx do portal", "TLS e proxy reverso", 443, "192.168.15.14", null, "Infraestrutura", "Plataforma", 2, "admin"],
 ];
 

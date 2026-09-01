@@ -135,3 +135,42 @@ test("o csrf refletido nos formularios sai escapado", async () => {
   assert.doesNotMatch(htmlMaquina, /<script>/);
   assert.match(htmlMaquina, /name="csrf" value="&quot;&gt;&lt;script&gt;x&lt;\/script&gt;"/);
 });
+
+test("acao destrutiva abre balao, nao leva para outra pagina", () => {
+  const db = abrirBanco(":memory:");
+  semear(db);
+  const html = botoesDaMaquina(db, "admin", 301, "vm", "tok", "infra");
+  // O destrutivo vira link para o balao; o formulario que de fato age fica
+  // DENTRO dele, ja com confirmado=1.
+  assert.match(html, /<a class="acao[^"]*" href="#confirmar-vm-301-shutdown"/);
+  assert.match(html, /id="confirmar-vm-301-shutdown"/);
+  assert.match(html, /name="confirmado" value="1"/);
+});
+
+test("ligar nao pede confirmacao: nao ha nada a perder", () => {
+  const db = abrirBanco(":memory:");
+  semear(db);
+  const html = botoesDaMaquina(db, "admin", 301, "vm", "tok", "infra");
+  const trecho = html.slice(0, html.indexOf("confirmar-") === -1 ? html.length : html.indexOf("confirmar-"));
+  assert.ok(!trecho.includes('href="#confirmar-vm-301-start"'), "start nao deve abrir balao");
+  assert.match(html, /name="verbo" value="start"/);
+});
+
+test("o balao carrega o csrf e o destino de volta", () => {
+  const db = abrirBanco(":memory:");
+  semear(db);
+  const html = botoesDaMaquina(db, "admin", 301, "vm", "segredo-do-token", "mapa");
+  const balao = html.slice(html.indexOf('id="confirmar-vm-301-shutdown"'));
+  assert.match(balao, /name="csrf" value="segredo-do-token"/);
+  assert.match(balao, /name="voltar" value="mapa"/);
+});
+
+test("o balao do host avisa o que ele derruba", () => {
+  const db = abrirBanco(":memory:");
+  semear(db);
+  const html = botaoDoHost(db, "admin", "tok");
+  assert.match(html, /href="#confirmar-host"/);
+  assert.match(html, /id="confirmar-host"/);
+  assert.match(html, /Home Assistant/);
+  assert.match(html, /FloripaOT/);
+});
