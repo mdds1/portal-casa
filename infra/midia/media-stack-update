@@ -1,0 +1,118 @@
+#!/usr/bin/python3
+"""Atualiza a stack de midia e desfaz sozinho se algum servico nao responder.
+
+Por que nao Watchtower: atualizacao automatica sem rollback quebra em silencio,
+e a descoberta acontece na hora de assistir. Aqui a atualizacao e disparada por
+uma pessoa e o rollback e automatico.
+
+Codigo 0 quando tudo subiu e respondeu; 1 quando houve rollback.
+"""
+import json
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+STACK = Path("/opt/media-stack")
+ANOTACAO = Path("/var/lib/media-stack-digests.json")
+
+# Porta publicada no host do CT por servico com interface HTTP.
+# flaresolverr e romm-db ficam de fora: o primeiro nao serve pagina em /, o
+# segundo nao fala HTTP.
+PORTAS = {
+    "qbittorrent": 8080,
+    "prowlarr": 9696,
+    "sonarr": 8989,
+    "radarr": 7878,
+    "bazarr": 6767,
+    "seerr": 5055,
+    "romm": 7070,
+}
+
+ESPERA_MAXIMA = 90  # segundos por servico
+
+
+def docker(*args, prazo=900):
+    return subprocess.run(["docker", *args], capture_output=True, text=True,
+                          cwd=STACK, timeout=prazo)
+
+
+def compose(*args, prazo=900):
+    return subprocess.run(["docker", "compose", *args], capture_output=True,
+                          text=True, cwd=STACK, timeout=prazo)
+
+
+def digests():
+    """{imagem: id} das imagens em uso agora."""
+    listagem = compose("config", "--images")
+    mapa = {}
+    for img in sorted(set(filter(None, listagem.stdout.split()))):
+        ident = docker("image", "inspect", "--format", "{{.Id}}", img).stdout.strip()
+        if ident:
+            mapa[img] = ident
+    return mapa
+
+
+def responde(porta, limite):
+    """True se a porta aceitar conexao dentro do limite."""
+    fim = time.time() + limite
+    while time.time() < fim:
+        with socket.socket() as s:
+            s.settimeout(2)
+            if s.connect_ex(("127.0.0.1", porta)) == 0:
+                return True
+        time.sleep(2)
+    return False
+
+
+def main():
+    antes = digests()
+    if not antes:
+        print("media-stack-update: nao consegui ler as imagens atuais", file=sys.stderr)
+        return 2
+    ANOTACAO.write_text(json.dumps(antes, indent=2), encoding="utf-8")
+    print(f"anotadas {len(antes)} imagens em {ANOTACAO}")
+
+    print("puxando imagens novas...")
+    puxou = compose("pull")
+    if puxou.returncode != 0:
+        print(puxou.stderr.strip()[-1500:], file=sys.stderr)
+        print("media-stack-update: falha ao puxar imagens; nada foi alterado", file=sys.stderr)
+        return 2
+
+    print("subindo...")
+    subiu = compose("up", "-d")
+    if subiu.returncode != 0:
+        print(subiu.stderr.strip()[-1500:], file=sys.stderr)
+
+    print("esperando os servicos responderem...")
+    falharam = []
+    for nome, porta in PORTAS.items():
+        print(f"  {nome}...", end=" ", flush=True)
+        if responde(porta, ESPERA_MAXIMA):
+            print("ok")
+        else:
+            print(f"NAO respondeu na porta {porta}")
+            falharam.append(nome)
+
+    if not falharam:
+        depois = digests()
+        mudou = [i for i in antes if antes[i] != depois.get(i)]
+        print(f"atualizacao concluida. {len(mudou)} imagem(ns) mudaram.")
+        for i in mudou:
+            print(f"  {i}")
+        return 0
+
+    print(f"REVERTENDO por causa de: {', '.join(falharam)}", file=sys.stderr)
+    for img, ident in antes.items():
+        marcou = docker("tag", ident, img)
+        if marcou.returncode != 0:
+            print(f"  nao consegui restaurar {img}: {marcou.stderr.strip()}", file=sys.stderr)
+    compose("up", "-d")
+    print(f"revertido para as versoes anotadas em {ANOTACAO}", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

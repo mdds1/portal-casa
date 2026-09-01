@@ -1,0 +1,13 @@
+# Segredos: chaves e senhas do RomM.
+.env
+.env.bak*
+
+# Estado dos servicos: bancos, indices, caches. Sao centenas de MB, mudam a
+# cada minuto, e ja estao protegidos pelo backup semanal do CT 102.
+config/
+
+# Copias manuais anteriores ao Git. O historico substitui isso.
+*.bak*
+*.before-*
+*.broken-*
+media-stack-backup.tar.gz
