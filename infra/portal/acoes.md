@@ -153,3 +153,28 @@ sh test/portal-acao.test.sh infra/portal/portal-acao
 
 Nao roda em `npm test` (e um script `sh`, nao TypeScript) -- e chamado a mao,
 localmente ou antes de reinstalar o arquivo no host.
+
+## O limite de 12 s mentia (corrigido em 01/09/2026)
+
+O portal registrou `shutdown ct:201 -> falhou: pct shutdown 201 --timeout 12
+--forceStop 0 (codigo 255)` para um desligamento que **deu certo**: o container
+so terminou de sair depois que o `pct` ja tinha desistido.
+
+Medido na mao: o **Jellyfin leva 17 s** para desligar por completo. O `--timeout
+12` devolvia 255 aos 12 s, e o portal gravava falha numa acao bem-sucedida.
+
+E o defeito que o proprio comentario do script previa — "grava ok=0 numa acao
+que talvez tenha dado certo" — so que causado pelo nosso limite, nao pelo padrao
+do Proxmox. A estimativa e que estava errada, nao o raciocinio.
+
+    portal-acao   LIMITE   12 s -> 45 s
+    wrapper.ts    msLimite 20 s -> 60 s
+
+Os dois andam juntos: o SSH precisa sobreviver a espera do `pct`. Mexer num sem
+o outro recria o mesmo defeito com outro numero.
+
+Provado depois da correcao: mesma acao, mesmo alvo, registro `OK stopped`.
+
+**`--forceStop 0` continua.** Um container travado segue sem desligar, e isso e
+deliberado: preferimos falhar e dizer a verdade a gravar "ok" para um puxao de
+tomada. Botao de forcar continua na lista de pendencias.

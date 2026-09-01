@@ -45,12 +45,20 @@ case "$TIPO" in
 esac
 
 # Quanto tempo esperar o guest sair sozinho. Os padroes do Proxmox (60 s no
-# pct, 180 s no qm) sao MAIORES que o limite do SSH do portal (20 s,
-# src/acoes/wrapper.ts): sem este --timeout o portal mata a conexao antes de
-# saber o que aconteceu e grava ok=0 numa acao que talvez tenha dado certo.
-# Com ele, o comando devolve um codigo de saida de verdade dentro da janela.
-# Tem que continuar CONFORTAVELMENTE menor que o limite do SSH.
-LIMITE=12
+# pct, 180 s no qm) sao MAIORES que o limite do SSH do portal: sem este
+# --timeout o portal mata a conexao antes de saber o que aconteceu e grava
+# ok=0 numa acao que talvez tenha dado certo. Com ele, o comando devolve um
+# codigo de saida de verdade dentro da janela.
+#
+# Era 12 s, e 12 s era pouco. Em 01/09/2026 o portal registrou
+# "shutdown ct:201 -> falhou (codigo 255)" para um desligamento que DEU CERTO:
+# o container so terminou depois. Medido na mao: o Jellyfin leva **17 s** para
+# desligar por completo. O defeito era o previsto no paragrafo acima — so que
+# causado pelo nosso proprio limite, nao pelo padrao do Proxmox.
+#
+# 45 s da folga para o mais lento sem prender a tela por muito tempo, e
+# continua CONFORTAVELMENTE menor que o limite do SSH (60 s).
+LIMITE=45
 
 # --forceStop 0 no pct e deliberado: o padrao (1) mata o container quando o
 # tempo acaba, e ai o portal grava "ok" para o que foi, na pratica, um puxao de

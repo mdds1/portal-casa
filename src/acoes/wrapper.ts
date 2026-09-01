@@ -32,7 +32,11 @@ export function mensagemDeFalha(erro: Error & { code?: number | string | null; s
 // o argumento — o host ignora qualquer tentativa de rodar outra coisa. Ainda
 // assim usamos execFile com lista de argumentos, nunca uma string de shell:
 // assim nao existe interpretacao de aspas nem de ponto-e-virgula no caminho.
-export function executorSsh(chave: string, destino: string, msLimite = 20000): Executor {
+// 60 s, e nao 20: o wrapper do host espera ate 45 s pelo guest (LIMITE em
+// infra/portal/portal-acao), e o SSH precisa sobreviver a essa espera. Com 20 s
+// o portal desistia antes da resposta e registrava falha em acao bem-sucedida —
+// aconteceu de verdade com o Jellyfin, que leva 17 s para desligar.
+export function executorSsh(chave: string, destino: string, msLimite = 60000): Executor {
   return (comando) =>
     new Promise((resolver) => {
       execFile(
