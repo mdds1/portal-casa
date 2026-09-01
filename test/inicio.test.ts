@@ -7,7 +7,7 @@ import { criarApp } from "../src/app.js";
 import { Cache } from "../src/cache.js";
 import { bom, ruim } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
-import { duracao, nomeDoDia } from "../src/telas/inicio.js";
+import { duracao, hojeEm, nomeDoDia } from "../src/telas/inicio.js";
 import { cachesDeTeste } from "./apoio.js";
 
 const RECURSOS: RecursoPve[] = [
@@ -145,10 +145,20 @@ test("fonte que falha vira cartao vermelho com o motivo, nao pagina quebrada", a
 
 test("o dia da previsao vira nome, e o de hoje diz 'hoje'", () => {
   // Data fixa: um teste que dependa do dia real passa hoje e quebra amanha.
-  const hoje = new Date(2026, 7, 31); // 31/08/2026, uma segunda
+  const hoje = "2026-08-31"; // uma segunda
   assert.equal(nomeDoDia("2026-08-31", hoje), "hoje");
   assert.equal(nomeDoDia("2026-09-01", hoje), "amanha");
   assert.equal(nomeDoDia("2026-09-02", hoje), "quarta");
+  // Virada de mes: o dia seguinte a 31/08 e 01/09, nao 32/08.
+  assert.equal(nomeDoDia("2026-09-01", "2026-08-31"), "amanha");
   // Entrada estranha nao inventa dia: devolve o que recebeu.
   assert.equal(nomeDoDia("nao-e-data", hoje), "nao-e-data");
+});
+
+test("o dia de hoje sai no fuso da casa, nao no do servidor", () => {
+  // 01/09 as 02:35 UTC ainda e 31/08 as 23:35 em Florianopolis. O container
+  // roda em UTC: sem ancorar o fuso, a previsao inteira desliza um dia.
+  const noiteDeTerca = new Date("2026-09-01T02:35:00Z");
+  assert.equal(hojeEm("America/Sao_Paulo", noiteDeTerca), "2026-08-31");
+  assert.equal(hojeEm("Etc/UTC", noiteDeTerca), "2026-09-01");
 });

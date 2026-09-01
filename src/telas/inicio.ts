@@ -47,18 +47,29 @@ function estadoDoCache(i: { dado: unknown; desatualizado: boolean }): "ok" | "ve
 
 const DIAS = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
 
-export function nomeDoDia(iso: string, hoje = new Date()): string {
+// O container roda em UTC e a previsao vem em horario de Sao Paulo. Sem fixar
+// o fuso, das 21h em diante o "hoje" da previsao ja e "ontem" para o servidor
+// e a lista inteira aparece deslocada um dia — defeito que so se manifesta a
+// noite, que e justamente quando alguem olha a previsao de amanha.
+const FUSO = "America/Sao_Paulo";
+
+export function hojeEm(fuso = FUSO, agora = new Date()): string {
+  // en-CA formata como AAAA-MM-DD, o mesmo formato que a API devolve.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: fuso }).format(agora);
+}
+
+export function nomeDoDia(iso: string, hoje = hojeEm()): string {
   const [a, m, d] = iso.split("-").map(Number);
   if (!a || !m || !d) return iso;
-  const data = new Date(a, m - 1, d);
-  const mesmoDia =
-    data.getDate() === hoje.getDate() &&
-    data.getMonth() === hoje.getMonth() &&
-    data.getFullYear() === hoje.getFullYear();
-  if (mesmoDia) return "hoje";
-  const amanha = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1);
-  if (data.getTime() === amanha.getTime()) return "amanha";
-  return DIAS[data.getDay()] ?? iso;
+  if (iso === hoje) return "hoje";
+  const [ha, hm, hd] = hoje.split("-").map(Number);
+  if (ha && hm && hd) {
+    const amanha = new Date(Date.UTC(ha, hm - 1, hd + 1));
+    if (iso === amanha.toISOString().slice(0, 10)) return "amanha";
+  }
+  // O dia da semana sai de uma data em UTC de proposito: assim nao depende do
+  // fuso do processo, so dos numeros que vieram na string.
+  return DIAS[new Date(Date.UTC(a, m - 1, d)).getUTCDay()] ?? iso;
 }
 
 export function rotaInicio(deps: DepsTela): RequestHandler {
