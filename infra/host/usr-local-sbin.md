@@ -44,8 +44,8 @@ Restricoes por alvo:
 O comando chega por `SSH_ORIGINAL_COMMAND` (forced command na chave SSH),
 nao por argv — testar o wrapper exige simular isso.
 
-**ct:104 (starloco) NAO esta na lista.** Acrescenta-lo e pendencia ja
-registrada no spec do portal.
+~~**ct:104 (starloco) NAO esta na lista.**~~ **Corrigido.** Conferido em
+01/09/2026: `ct:104` esta na lista fechada.
 
 
 ## Verbos sem alvo

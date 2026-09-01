@@ -84,5 +84,5 @@ Servidor anunciando `ip="play.dinizismo.com.br"`, `port="7171"`.
 
 ## Pendencia que ficou
 
-**A VM 301 esta com `onboot: 0`.** Um servidor publico que nao volta depois de
-queda de luz e pior que um privado — some sem ninguem perceber.
+~~**A VM 301 esta com `onboot: 0`.**~~ **Corrigido.** Conferido em 01/09/2026:
+`onboot: 1`. Ela volta sozinha depois de queda de luz.

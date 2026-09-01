@@ -58,6 +58,7 @@ consegue apagar `/mnt/drive/dump` e destruir o unico backup existente. O
 cenario concreto e ransomware num PC da casa com o compartilhamento SMB
 montado, criptografando ou apagando tambem o backup.
 
-Isso e um risco **conhecido e ainda nao mitigado**. A mitigacao (mover o
-destino para fora da arvore exportada por SMB, ou tirar do container a
-escrita sobre o diretorio pai) fica para o proximo plano.
+**CORRIGIDO em 30/08/2026.** O ponto de montagem do CT 100 passou a ser
+`/mnt/drive/compartilhado`, e o `dump/` ficou fora do que o container enxerga.
+Conferido em 01/09/2026: `mp0: /mnt/drive/compartilhado,mp=/dados`.
+Ver `infra/backup/destino-protegido.md`.
