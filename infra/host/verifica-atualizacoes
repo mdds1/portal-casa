@@ -10,6 +10,7 @@ assim que o Jellyfin passou dois dias sem backup sem ninguem ver.
 
 Escreve /var/lib/portal/atualizacoes.txt e imprime o mesmo conteudo.
 """
+import base64
 import json
 import subprocess
 import sys
@@ -39,8 +40,53 @@ def guests():
         yield r.get("type"), str(r.get("vmid")), r.get("name") or "sem-nome", r.get("status")
 
 
+def digest_remoto(img):
+    """Digest de configuracao da imagem amd64 no registro, sem baixar nada.
+
+    O caminho ate esse valor nao e obvio e custou uma volta:
+
+      - `RepoDigests` local guarda o digest da LISTA de manifestos;
+      - `docker manifest inspect -v` devolve o digest de cada manifesto POR
+        PLATAFORMA.
+
+    Sao coisas diferentes e nunca batem — comparar os dois marca toda imagem
+    como desatualizada, inclusive as que acabaram de ser atualizadas. O valor
+    comparavel com o `Id` local e o `config.digest`, que vem embutido em
+    base64 no campo `Raw` da entrada amd64.
+    """
+    manifesto = roda(["pct", "exec", CT_DOCKER, "--", "docker", "manifest",
+                      "inspect", "-v", img], prazo=120)
+    if manifesto.returncode != 0:
+        return None
+    try:
+        entradas = json.loads(manifesto.stdout)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(entradas, dict):
+        entradas = [entradas]
+    for entrada in entradas:
+        plataforma = entrada.get("Descriptor", {}).get("platform", {})
+        if plataforma.get("architecture") != "amd64" or plataforma.get("os") != "linux":
+            continue
+        bruto = entrada.get("Raw")
+        if not bruto:
+            continue
+        try:
+            corpo = json.loads(base64.b64decode(bruto))
+        except (ValueError, json.JSONDecodeError):
+            return None
+        return corpo.get("config", {}).get("digest")
+    return None
+
+
 def imagens_docker():
-    """Linhas sobre imagens com atualizacao disponivel no CT 102."""
+    """Linhas sobre imagens com atualizacao disponivel no CT 102.
+
+    Compara digests SEM baixar. A primeira versao usava `docker pull` para
+    detectar diferenca — e com isso aplicava metade da atualizacao sozinha, de
+    madrugada, sem teste. Era exatamente o risco do Watchtower que este
+    mecanismo existe para evitar.
+    """
     estado = roda(["pct", "status", CT_DOCKER]).stdout.split()
     if len(estado) < 2 or estado[1] != "running":
         return ["imagens Docker: nao verificado (CT 102 desligado)"]
@@ -52,15 +98,12 @@ def imagens_docker():
 
     linhas, pendentes = [], 0
     for img in nomes:
-        antes = roda(["pct", "exec", CT_DOCKER, "--", "docker", "image", "inspect",
+        local = roda(["pct", "exec", CT_DOCKER, "--", "docker", "image", "inspect",
                       "--format", "{{.Id}}", img]).stdout.strip()
-        puxou = roda(["pct", "exec", CT_DOCKER, "--", "docker", "pull", "-q", img], prazo=600)
-        if puxou.returncode != 0:
-            linhas.append(f"imagem {img}: nao verificado (falha ao consultar o registro)")
-            continue
-        depois = roda(["pct", "exec", CT_DOCKER, "--", "docker", "image", "inspect",
-                       "--format", "{{.Id}}", img]).stdout.strip()
-        if antes and depois and antes != depois:
+        remoto = digest_remoto(img)
+        if not local or not remoto:
+            linhas.append(f"imagem {img}: nao verificado (sem digest para comparar)")
+        elif local != remoto:
             linhas.append(f"imagem {img}: atualizacao disponivel")
             pendentes += 1
     linhas.append(f"imagens Docker: {pendentes} com atualizacao")

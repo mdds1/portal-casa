@@ -44,13 +44,20 @@ def compose(*args, prazo=900):
 
 
 def digests():
-    """{imagem: id} das imagens em uso agora."""
-    listagem = compose("config", "--images")
+    """{imagem: id} da imagem que cada container esta REALMENTE rodando.
+
+    Nao usamos o id para o qual a tag aponta: qualquer `docker pull` anterior
+    ja pode te-la movido, e o ponto de retorno apontaria para a versao nova.
+    O id do container em execucao e imutavel — e o unico ancoradouro honesto.
+    """
+    nomes = subprocess.run(["docker", "ps", "--format", "{{.Names}}"],
+                           capture_output=True, text=True, cwd=STACK).stdout.split()
     mapa = {}
-    for img in sorted(set(filter(None, listagem.stdout.split()))):
-        ident = docker("image", "inspect", "--format", "{{.Id}}", img).stdout.strip()
-        if ident:
-            mapa[img] = ident
+    for nome in nomes:
+        tag = docker("inspect", "-f", "{{.Config.Image}}", nome).stdout.strip()
+        ident = docker("inspect", "-f", "{{.Image}}", nome).stdout.strip()
+        if tag and ident:
+            mapa[tag] = ident
     return mapa
 
 
