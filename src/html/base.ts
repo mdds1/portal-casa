@@ -255,6 +255,71 @@ td:nth-child(1), td:nth-child(4), td:nth-child(5) {
   .item .maquina { justify-self:start; margin-top:.15rem; }
   .hospede .acoes { margin-left:0; width:100%; }
 }
+
+/* ---- Administracao ------------------------------------------------------
+   Tabela de edicao, nao de leitura: cada linha carrega formularios. O ritmo
+   e mais apertado que o dos cartoes de propósito — aqui se compara e se
+   altera, nao se contempla. */
+.bloco { margin: 0 0 2.5rem; }
+.bloco h3 { margin: 0 0 .25rem; font-size: 1rem; letter-spacing: .01em; }
+.bloco > .fraco { margin: 0 0 .9rem; max-width: 62ch; font-size: .875rem; }
+
+table.admin { width: 100%; border-collapse: collapse; }
+table.admin th {
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--fraco); font-weight: 400; text-align: left;
+  padding: 0 .75rem .5rem 0; border-bottom: 1px solid var(--borda);
+}
+table.admin td {
+  padding: .7rem .75rem .7rem 0; border-bottom: 1px solid var(--borda);
+  vertical-align: middle;
+}
+table.admin td:last-child, table.admin th:last-child { padding-right: 0; }
+table.admin form { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; margin: 0; }
+
+.admin input[type=text], .admin input[type=password], .admin input:not([type]), .admin select,
+form.criar input, form.criar select {
+  font: inherit; font-size: .85rem; padding: .3rem .5rem;
+  border: 1px solid var(--borda); border-radius: 4px;
+  background: var(--fundo); color: var(--texto); min-width: 0;
+}
+.admin input:focus-visible, .admin select:focus-visible,
+form.criar input:focus-visible, form.criar select:focus-visible {
+  outline: 2px solid var(--acento); outline-offset: 1px;
+}
+.emlinha input[name=descricao] { flex: 1 1 14rem; }
+.emlinha label { font-size: .8rem; color: var(--fraco); display: flex; gap: .3rem; align-items: center; }
+
+form.criar {
+  display: flex; gap: .4rem; flex-wrap: wrap; align-items: center;
+  margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--borda);
+}
+
+/* Marca a propria linha de quem esta logado: as recusas de "contra si mesmo"
+   so fazem sentido para quem sabe qual linha e a sua. */
+.marca {
+  font-size: .65rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--acento); border: 1px solid currentColor;
+  border-radius: 3px; padding: .05rem .3rem; vertical-align: middle;
+}
+
+/* O motivo de uma recusa vai no topo da pagina, nao ao lado do campo: a
+   pagina inteira e reconstruida no 422, e o olho volta para o comeco. */
+.aviso {
+  margin: 0 0 1.5rem; padding: .7rem .9rem;
+  border-left: 3px solid var(--erro); background: var(--fundo);
+  border-radius: 0 4px 4px 0; font-size: .9rem;
+}
+
+.ok { color: var(--no-ar); }
+.falhou { color: var(--erro); }
+
+@media (max-width: 640px) {
+  table.admin, table.admin tbody, table.admin tr, table.admin td { display: block; width: 100%; }
+  table.admin thead { display: none; }
+  table.admin tr { padding: .6rem 0; border-bottom: 1px solid var(--borda); }
+  table.admin td { border: 0; padding: .25rem 0; }
+}
 `;
 
 
@@ -268,6 +333,7 @@ const MENU: ItemMenu[] = [
   { href: "/", rotulo: "Inicio", poderMinimo: 10 },
   { href: "/mapa", rotulo: "Mapa", poderMinimo: 10 },
   { href: "/infraestrutura", rotulo: "Infraestrutura", poderMinimo: 100 },
+  { href: "/administracao", rotulo: "Administracao", poderMinimo: 100 },
 ];
 
 export function layout(o: {
