@@ -5,7 +5,7 @@ import { semear } from "../src/db/semente.js";
 import { gerarHash, conferirSenha } from "../src/auth/senha.js";
 import { criarApp } from "../src/app.js";
 import { bom } from "../src/fontes/tipos.js";
-import { cachesDeTeste } from "./apoio.js";
+import { cachesDeTeste , chamarHaDeTeste } from "./apoio.js";
 
 // Recebe o contexto do teste para registrar o fechamento do servidor em
 // t.after(). Fechar so no fim do corpo do teste parece funcionar — ate a
@@ -21,6 +21,7 @@ async function subir(t: { after: (fn: () => void) => void }) {
   criar.run("matheus", "Matheus", gerarHash("senha-de-teste"), "admin", 1);
   criar.run("marcella", "Marcella", gerarHash("senha-de-teste"), "casa", 1);
   const app = criarApp({
+    chamarHa: chamarHaDeTeste,
     db, segredoSessao: "teste", exec: async () => bom("running"),
     caches: cachesDeTeste([]),
   });

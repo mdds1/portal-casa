@@ -34,6 +34,19 @@ export class Cache<T> {
     };
   }
 
+  /**
+   * Forca a proxima leitura a ir a fonte.
+   *
+   * Serve para depois de uma acao de escrita: o estado no destino leva alguns
+   * segundos para mudar, e sem isto a tela seguinte mostraria o valor de antes
+   * — a pessoa apertaria "Ligar" e veria "Desligada", concluindo que falhou.
+   * Nao apaga o ultimo valor bom: se a fonte estiver fora do ar, a degradacao
+   * continua mostrando o que se sabia.
+   */
+  invalidar(): void {
+    this.buscadoEm = -Infinity;
+  }
+
   private async atualizar(): Promise<void> {
     try {
       const r = await this.buscar();

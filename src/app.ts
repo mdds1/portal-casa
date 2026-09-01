@@ -8,6 +8,7 @@ import { rotaInfraestrutura } from "./telas/infraestrutura.js";
 import { rotaMapa } from "./telas/mapa.js";
 import { rotaAcao } from "./telas/acao.js";
 import { rotaAdministracao, rotaMaquina, rotaUsuario } from "./telas/administracao.js";
+import { rotaMidia, rotaTv, type ChamarHa } from "./telas/midia.js";
 import type { Executor } from "./acoes/wrapper.js";
 import { escapar } from "./html/base.js";
 
@@ -26,6 +27,7 @@ export type Deps = {
   segredoSessao: string;
   caches: Caches;
   exec: Executor;
+  chamarHa: ChamarHa;
 };
 
 export function criarApp(deps: Deps): express.Express {
@@ -46,6 +48,13 @@ export function criarApp(deps: Deps): express.Express {
 
   app.get("/infraestrutura", exigirPapel(deps.db, "admin"),
     rotaInfraestrutura({ db: deps.db, caches: deps.caches, segredoSessao: deps.segredoSessao }));
+
+  const midia = {
+    db: deps.db, caches: deps.caches,
+    segredoSessao: deps.segredoSessao, chamarHa: deps.chamarHa,
+  };
+  app.get("/midia", exigirLogin, rotaMidia(midia));
+  app.post("/midia/tv", exigirLogin, rotaTv(midia));
 
   const admin = { db: deps.db, segredoSessao: deps.segredoSessao };
   app.get("/administracao", exigirPapel(deps.db, "admin"), rotaAdministracao(admin));

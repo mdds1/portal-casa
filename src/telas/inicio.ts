@@ -4,6 +4,7 @@ import type { Cache } from "../cache.js";
 import type { NoPve, RecursoPve } from "../fontes/proxmox.js";
 import type { Dispositivo } from "../fontes/tailscale.js";
 import type { Tempo } from "../fontes/tempo.js";
+import type { EstadoHa } from "../fontes/homeassistant.js";
 import { listarMaquinas, poderDoPapel } from "../db/inventario.js";
 import { layout, escapar, faixaDeAviso } from "../html/base.js";
 import { cartao, linha } from "../html/cartao.js";
@@ -13,6 +14,7 @@ export type Caches = {
   no: Cache<NoPve>;
   rede: Cache<Dispositivo[]>;
   tempo: Cache<Tempo>;
+  ha: Cache<EstadoHa[]>;
 };
 export type DepsTela = { db: Database.Database; caches: Caches; segredoSessao: string };
 

@@ -7,7 +7,7 @@ import { criarApp } from "../src/app.js";
 import { bom, ruim } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
 import type { Executor } from "../src/acoes/wrapper.js";
-import { cachesDeTeste } from "./apoio.js";
+import { cachesDeTeste , chamarHaDeTeste } from "./apoio.js";
 
 function montar(exec: Executor) {
   const db = abrirBanco(":memory:");
@@ -17,6 +17,7 @@ function montar(exec: Executor) {
   db.prepare("INSERT INTO usuarios (login,nome,senha,papel) VALUES (?,?,?,?)")
     .run("marcella", "Marcella", gerarHash("s2"), "casa");
   const app = criarApp({
+    chamarHa: chamarHaDeTeste,
     db, segredoSessao: "teste", exec,
     caches: cachesDeTeste([] as RecursoPve[]),
   });

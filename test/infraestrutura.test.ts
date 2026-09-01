@@ -7,7 +7,7 @@ import { criarApp } from "../src/app.js";
 import { bom } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
 import { botaoDoHost, botoesDaMaquina } from "../src/telas/infraestrutura.js";
-import { cachesDeTeste } from "./apoio.js";
+import { cachesDeTeste , chamarHaDeTeste } from "./apoio.js";
 
 const RECURSOS: RecursoPve[] = [
   { tipo: "qemu", vmid: 301, nome: "floripaot", estado: "running", cpu: 0.02, memoria: 2e9, memoriaMax: 8e9, uptime: 25200 },
@@ -30,6 +30,7 @@ async function comAdmin() {
   const app = criarApp({
     db, segredoSessao: "teste",
     exec: async () => bom("running"),
+    chamarHa: chamarHaDeTeste,
     caches: cachesDeTeste(RECURSOS),
   });
   const s = app.listen(0);

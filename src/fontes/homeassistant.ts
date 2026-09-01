@@ -36,3 +36,34 @@ export async function buscarEstados(
     return ruim(e instanceof Error ? e.message : String(e));
   }
 }
+
+/**
+ * Chama um servico do Home Assistant (ligar TV, pausar, etc).
+ *
+ * Existe separado de `buscarEstados` porque muda o mundo: leitura pode ser
+ * cacheada e repetida a vontade, escrita nao. O token e o mesmo, mas o
+ * chamador precisa ver a diferenca no nome do que esta invocando.
+ */
+export async function chamarServico(
+  url: string,
+  token: string,
+  dominio: string,
+  servico: string,
+  dados: Record<string, unknown>,
+  fetchFn: typeof fetch = fetch
+): Promise<Resultado<null>> {
+  try {
+    const r = await fetchFn(`${url}/api/services/${dominio}/${servico}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(dados),
+    });
+    if (!r.ok) return ruim(`Home Assistant respondeu ${r.status}`);
+    return bom(null);
+  } catch (e) {
+    return ruim(e instanceof Error ? e.message : String(e));
+  }
+}

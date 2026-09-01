@@ -332,6 +332,7 @@ type ItemMenu = { href: string; rotulo: string; poderMinimo: number };
 const MENU: ItemMenu[] = [
   { href: "/", rotulo: "Inicio", poderMinimo: 10 },
   { href: "/mapa", rotulo: "Mapa", poderMinimo: 10 },
+  { href: "/midia", rotulo: "Midia", poderMinimo: 10 },
   { href: "/infraestrutura", rotulo: "Infraestrutura", poderMinimo: 100 },
   { href: "/administracao", rotulo: "Administracao", poderMinimo: 100 },
 ];

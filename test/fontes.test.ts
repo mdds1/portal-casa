@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { interpretarRecursos, buscarRecursos } from "../src/fontes/proxmox.js";
-import { interpretarEstados, buscarEstados } from "../src/fontes/homeassistant.js";
+import { interpretarEstados, buscarEstados, chamarServico } from "../src/fontes/homeassistant.js";
 import { checarPorta } from "../src/fontes/porta.js";
 
 const pve = JSON.parse(readFileSync("test/respostas/pve-recursos.json", "utf8"));
@@ -77,4 +77,35 @@ test("checarPorta acha porta aberta", async () => {
 test("checarPorta devolve falha em porta fechada, sem lancar", async () => {
   const r = await checarPorta("127.0.0.1", 1, 500);
   assert.equal(r.ok, false);
+});
+
+test("chamarServico monta o caminho e o corpo que o HA espera", async () => {
+  let visto: { url: string; init: RequestInit } | null = null;
+  const falso: typeof fetch = async (url, init) => {
+    visto = { url: String(url), init: init ?? {} };
+    return new Response("[]", { status: 200 });
+  };
+  const r = await chamarServico("http://ha", "abc", "media_player", "turn_off",
+    { entity_id: "media_player.luke_tv" }, falso);
+  assert.equal(r.ok, true);
+  assert.equal(visto!.url, "http://ha/api/services/media_player/turn_off");
+  assert.equal(visto!.init.method, "POST");
+  const cab = visto!.init.headers as Record<string, string>;
+  assert.equal(cab.Authorization, "Bearer abc");
+  assert.equal(cab["content-type"], "application/json");
+  assert.deepEqual(JSON.parse(String(visto!.init.body)), { entity_id: "media_player.luke_tv" });
+});
+
+test("chamarServico devolve falha em status ruim, sem lancar", async () => {
+  const falso: typeof fetch = async () => new Response("nao", { status: 401 });
+  const r = await chamarServico("http://ha", "abc", "media_player", "turn_off", {}, falso);
+  assert.equal(r.ok, false);
+  assert.match((r as { erro: string }).erro, /401/);
+});
+
+test("chamarServico devolve falha quando a rede cai", async () => {
+  const falso: typeof fetch = async () => { throw new Error("sem rota"); };
+  const r = await chamarServico("http://ha", "abc", "media_player", "turn_off", {}, falso);
+  assert.equal(r.ok, false);
+  assert.match((r as { erro: string }).erro, /sem rota/);
 });

@@ -6,7 +6,7 @@ import { gerarHash } from "../src/auth/senha.js";
 import { criarApp } from "../src/app.js";
 import { bom } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
-import { cachesDeTeste } from "./apoio.js";
+import { cachesDeTeste , chamarHaDeTeste } from "./apoio.js";
 
 const RECURSOS: RecursoPve[] = [
   { tipo: "lxc", vmid: 102, nome: "Docker", estado: "running", cpu: 0, memoria: 0, memoriaMax: 4e9, uptime: 25200 },
@@ -23,6 +23,7 @@ async function servidor() {
   const app = criarApp({
     db, segredoSessao: "teste",
     exec: async () => bom("running"),
+    chamarHa: chamarHaDeTeste,
     caches: cachesDeTeste(RECURSOS),
   });
   const s = app.listen(0);

@@ -32,7 +32,7 @@ import { abrirBanco } from "../src/db/conexao.js";
 import { criarApp } from "../src/app.js";
 import { gerarHash as hash } from "../src/auth/senha.js";
 import { bom } from "../src/fontes/tipos.js";
-import { cachesDeTeste } from "./apoio.js";
+import { cachesDeTeste , chamarHaDeTeste } from "./apoio.js";
 
 async function comServidor(fn: (base: string, db: Database.Database) => Promise<void>) {
   const db = abrirBanco(":memory:");
@@ -44,6 +44,7 @@ async function comServidor(fn: (base: string, db: Database.Database) => Promise<
     db,
     segredoSessao: "teste",
     exec: async () => bom("running"),
+    chamarHa: chamarHaDeTeste,
     caches: cachesDeTeste([]),
   }).listen(0);
   const porta = (servidor.address() as { port: number }).port;

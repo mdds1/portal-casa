@@ -8,7 +8,7 @@ import { Cache } from "../src/cache.js";
 import { bom, ruim } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
 import { duracao, hojeEm, nomeDoDia } from "../src/telas/inicio.js";
-import { cachesDeTeste } from "./apoio.js";
+import { cachesDeTeste, chamarHaDeTeste } from "./apoio.js";
 
 const RECURSOS: RecursoPve[] = [
   { tipo: "qemu", vmid: 301, nome: "floripaot", estado: "running", cpu: 0.02, memoria: 2e9, memoriaMax: 8e9, uptime: 90061 },
@@ -22,7 +22,10 @@ async function servidor(caches = cachesDeTeste(RECURSOS)) {
   const inserir = db.prepare("INSERT INTO usuarios (login,nome,senha,papel) VALUES (?,?,?,?)");
   inserir.run("matheus", "Matheus", gerarHash("s1"), "admin");
   inserir.run("marcella", "Marcella", gerarHash("s2"), "casa");
-  const app = criarApp({ db, segredoSessao: "teste", exec: async () => bom("running"), caches });
+  const app = criarApp({
+    db, segredoSessao: "teste", exec: async () => bom("running"),
+    caches, chamarHa: chamarHaDeTeste,
+  });
   const s = app.listen(0);
   const base = `http://127.0.0.1:${(s.address() as { port: number }).port}`;
   const entrar = async (login: string, senha: string) => {

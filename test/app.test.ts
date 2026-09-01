@@ -6,13 +6,14 @@ import { bom } from "../src/fontes/tipos.js";
 import { abrirBanco } from "../src/db/conexao.js";
 import { semear } from "../src/db/semente.js";
 import { gerarHash } from "../src/auth/senha.js";
-import { cachesDeTeste } from "./apoio.js";
+import { cachesDeTeste , chamarHaDeTeste } from "./apoio.js";
 
 test("GET /saude responde ok", async () => {
   const app = criarApp({
     db: new Database(":memory:"),
     segredoSessao: "teste",
     exec: async () => bom("running"),
+    chamarHa: chamarHaDeTeste,
     caches: cachesDeTeste([]),
   });
   const servidor = app.listen(0);
@@ -40,6 +41,7 @@ test("rota inexistente devolve 404 com pagina curta, nao o handler padrao do Exp
     db: new Database(":memory:"),
     segredoSessao: "teste",
     exec: async () => bom("running"),
+    chamarHa: chamarHaDeTeste,
     caches: cachesDeTeste([]),
   });
   const servidor = app.listen(0);
@@ -63,6 +65,7 @@ test("excecao fora das fontes externas cai no handler de erro, sem stack na resp
     db,
     segredoSessao: "teste",
     exec: async () => bom("running"),
+    chamarHa: chamarHaDeTeste,
     caches: cachesDeTeste([]),
   });
   const servidor = app.listen(0);
