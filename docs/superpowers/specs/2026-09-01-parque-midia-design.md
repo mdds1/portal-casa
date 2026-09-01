@@ -11,12 +11,13 @@ O parque de midia funciona, mas carrega riscos herdados da migracao do Jellyfin
 | # | Achado | Peso |
 |---|---|---|
 | 1 | O job de backup `casa-diario` cobre o CT **101** (morto) e **nao cobre o 201** (vivo) | alto |
+| 1b | O agendador do Proxmox **nao recupera execucao perdida**, e o host fica desligado em horarios irregulares | alto |
 | 2 | CT 101 e CT 201 compartilham o MAC `BC:24:11:C0:32:06` | alto |
 | 3 | O CT 201 pega IP por DHCP (`192.168.15.15`) sem reserva | medio |
 | 4 | Nao ha mecanismo de atualizacao; tudo em `:latest`, pasta `config/watchtower` orfa | medio |
 | 5 | `compose.yaml` fora do Git, com 5 arquivos `.bak` empilhados | medio |
-| 6 | Jellyfin com 2 nucleos, sem aceleracao por hardware | baixo |
-| 7 | CT 101 ocupa 12 GB e entra no backup diario a toa | baixo |
+| 6 | **30 das 48 sessoes sao transcodificacao completa** — assiste-se pelo navegador em todos os aparelhos | alto |
+| 7 | CT 101 ocupa 12 GB e entra no backup diario a toa | baixo | **resolvido em 01/09** |
 
 O unico backup do CT 201 e um `vzdump` manual de 31/08 no **disco local do host** —
 exatamente o disco de que um backup nao deveria depender.
@@ -27,6 +28,10 @@ exatamente o disco de que um backup nao deveria depender.
 - **Backup da biblioteca de midia.** `/mnt/media` (60 GB) segue sem copia. O
   `vzdump` ja a exclui por ser bind mount, e isso permanece deliberado.
 - **Atualizacao automatica** (Watchtower). Substituida por atualizacao manual com aviso.
+- **Backup diario.** Passa a semanal, as sextas. O dono considera diario excessivo.
+- **Encenar o filme num SSD antes de assistir.** Descartado por medicao, nao por
+  gosto: o gargalo e transcodificacao de CPU, nao leitura de disco, e nao ha espaco
+  de SSD livre. Registrado para nao voltar como "ideia nova" mais adiante.
 - Sonarr, Radarr, Prowlarr, Seerr, RomM e qBittorrent nao serao tocados: funcionam
   e nao fazem parte do problema.
 
@@ -38,6 +43,10 @@ exatamente o disco de que um backup nao deveria depender.
     Jellyfin 10.11.11 (ultima release), usando 166 MB dos 2 GB que tem
     Drive de backup: 453 GB livres
     Retencao do job: 3 diarios + 2 semanais + 1 mensal, as 03:00, storage `drive`
+    Discos: 2 SSD de 112 GB (ambos totalmente alocados), 1 HD de 466 GB (backups), 1 HD de 932 GB (midia)
+    Reproducao: 30 de 48 sessoes sao transcodificacao; 100% via "Jellyfin Web"
+    Arquivos: HEVC Main 10 + E-AC3 Atmos
+    Host desligado em horarios irregulares (03:26-12:23, 00:03-18:40, 23:47-07:14), sem agendamento
 
 ## Arquitetura
 
@@ -46,10 +55,10 @@ obrigatoria e **1 antes de 2** (o backup do 101 precisa existir antes de destrui
 
 ---
 
-### Unidade 1 — O backup passa a cobrir o Jellyfin
+### Unidade 1 — O backup passa a cobrir o Jellyfin, e passa a ser semanal
 
-**O que faz:** corrige a lista do job `casa-diario` (entra o 201, sai o 101) e cria
-um verificador que impede a lista de ficar desatualizada de novo.
+**O que faz:** troca o job `casa-diario` por um semanal as sextas, com o `201`
+incluido, e cria um verificador que impede a lista de ficar desatualizada de novo.
 
 **Por que o verificador:** a linha de configuracao conserta hoje; o verificador
 conserta o padrao. A lista ficou errada porque uma migracao criou uma maquina nova
@@ -58,32 +67,50 @@ e ninguem lembrou do job. Isso vai se repetir.
 **Como funciona:** um script compara os guests existentes (`pvesh get /cluster/resources`)
 contra a lista `vmid` do job e reporta quem esta de fora. Exclusoes deliberadas
 (a VM 110, bancada) vivem num arquivo de excecoes, para o alerta nao virar ruido
-que se aprende a ignorar. Roda semanalmente por cron.
+que se aprende a ignorar.
 
-**Interface:** `/usr/local/sbin/verifica-backup` — saida vazia e codigo 0 quando tudo
-coberto; lista os vmid descobertos e codigo 1 quando falta alguem.
-Excecoes em `/etc/verifica-backup.excecoes`, um vmid por linha, `#` comenta.
+**A armadilha do agendamento — medida em 01/09:** o host fica desligado em horarios
+irregulares (03:26-12:23 em 01/09; 00:03-18:40 em 28/08; 23:47-07:14 em 26/08).
+Nao ha desligamento agendado: e manual. O agendador de backup do Proxmox **nao
+recupera execucao perdida**, entao um backup semanal marcado para sexta de
+madrugada poderia passar semanas sem rodar, em silencio — pior que o diario atual,
+porque a falha nao aparece.
+
+Por isso o backup sai do agendador do Proxmox e passa a ser disparado por um
+**systemd timer com `Persistent=true`**, que roda a tarefa perdida no boot seguinte.
+"Sexta as 01:00" vira "sexta as 01:00, ou assim que a maquina ligar depois disso".
+
+**Retencao:** com backup semanal, `keep-weekly=4,keep-monthly=2` — cerca de dois
+meses de historico. A retencao diaria atual (`keep-daily=3`) deixa de fazer sentido.
+
+**Interface:**
+- `/usr/local/sbin/verifica-backup` — saida vazia e codigo 0 quando tudo coberto;
+  lista os vmid descobertos e codigo 1 quando falta alguem.
+  Excecoes em `/etc/verifica-backup.excecoes`, um vmid por linha, `#` comenta.
+- `backup-casa.service` + `backup-casa.timer` (`OnCalendar=Fri 01:00`, `Persistent=true`).
 
 **Verificacao:** restaurar o backup do 201 num VMID descartavel (999), confirmar que
 o Jellyfin sobe e que `jellyfin.db` tem as contas, e destruir o restaurado. Backup
 que nunca foi restaurado e hipotese, nao backup.
-Alem disso: criar um CT descartavel fora da lista e confirmar que o verificador o acusa.
+Alem disso: criar um CT descartavel fora da lista e confirmar que o verificador o
+acusa; e simular execucao perdida (parar o timer, adiantar o relogio do teste) para
+confirmar que a tarefa roda no boot seguinte em vez de ser pulada.
 
----
+### Unidade 2 — O CT 101 e aposentado — CONCLUIDA EM 01/09/2026
 
-### Unidade 2 — O CT 101 e aposentado
+**Executada antes do plano, a pedido do dono.** Registrada aqui para o historico.
 
-**O que faz:** `vzdump` final para o storage `drive`, conferencia do arquivo,
-`pct destroy 101`, e remocao do vmid do job.
+    vzdump 101 --storage drive --mode stop
+      -> /mnt/drive/dump/vzdump-lxc-101-2026_09_01-13_07_49.tar.zst  (543 MB)
+    zstd -t                                    -> arquivo integro
+    tar -tf | grep jellyfin.db                 -> banco de contas presente
+    pct destroy 101 --purge 1                  -> feito
 
-**Ganhos:** libera 12 GB, tira um container morto do backup diario e **acaba com a
-colisao de MAC** — hoje ligar o 101 com o 201 no ar derruba a rede dos dois.
+O `--purge` removeu o vmid do job de backup sozinho: a lista passou de
+`100,101,102,104,111,120,301` para `100,102,104,111,120,301`.
 
-**Verificacao:** listar o conteudo do arquivo `.tar.zst` e confirmar que
-`/var/lib/jellyfin/data/jellyfin.db` esta la antes de destruir. Depois de destruir,
-confirmar que `pct list` nao mostra mais o 101 e que o job nao o cita.
-
----
+**Ganhos confirmados:** 12 GB liberados, um container morto fora do backup, e a
+**colisao de MAC resolvida** — o `BC:24:11:C0:32:06` agora e exclusivo do CT 201.
 
 ### Unidade 3 — Endereco fixo para o Jellyfin
 
@@ -116,54 +143,102 @@ o que um invasor alcanca a partir dali. O backup diario ja resolve perda.
 
 ---
 
-### Unidade 5 — Atualizacao controlada, com aviso
+### Unidade 5 — Atualizacao controlada, com aviso semanal
 
 Duas pecas separadas, por terem donos diferentes: uma informa, a outra age.
 
-**O verificador** compara o digest local de cada imagem com o do registro e lista o
-que tem atualizacao. Nao muda nada. Exposto ao Home Assistant como sensor, para
-aparecer no painel sem ninguem precisar entrar em nada.
+**O verificador** cobre o **Proxmox inteiro**, nao so a stack de midia:
 
-**O atualizador** e disparado por voce: anota os digests atuais, puxa as imagens,
-sobe a stack e faz *health check* HTTP em cada servico. Se algum nao responder no
-prazo, **volta sozinho para os digests anotados**.
+    host pve          apt list --upgradable
+    cada VM/CT ligado apt (ou equivalente) dentro do guest
+    CT 102            digest local de cada imagem Docker contra o do registro
+
+Nao muda nada — so relata. Roda **sexta as 01:00** por systemd timer com
+`Persistent=true`, pela mesma razao da Unidade 1: o host raramente esta ligado
+naquele horario, e sem `Persistent` a verificacao simplesmente nunca aconteceria.
+Maquina desligada na hora da checagem e reportada como "nao verificada", nunca como
+"atualizada" — silencio nao pode ser confundido com boa noticia.
+
+O resultado vai para um arquivo lido pelo Home Assistant como sensor, para aparecer
+no painel sem ninguem precisar entrar em nada.
+
+**O atualizador** e disparado por voce, e cobre so a stack de Docker: anota os
+digests atuais, puxa as imagens, sobe e faz *health check* HTTP em cada servico. Se
+algum nao responder no prazo, **volta sozinho para os digests anotados**.
 
 **Por que nao Watchtower:** atualizacao automatica sem rollback ja quebrou Sonarr e
 Radarr para muita gente, e a descoberta acontece na hora de assistir. O rollback
 automatico e o que separa as duas abordagens.
 
+Atualizacao de pacotes de host e guests permanece **manual**: o verificador avisa,
+voce decide. Atualizar o kernel do Proxmox sem ninguem por perto e outro tipo de
+risco.
+
 **Interface:**
-- `/usr/local/sbin/media-stack-check` (no CT 102) — imprime uma linha por imagem
-  com atualizacao pendente; vazio quando tudo atual.
+- `/usr/local/sbin/verifica-atualizacoes` (host) — relatorio em
+  `/var/lib/portal/atualizacoes.txt`, uma linha por alvo.
+- `verifica-atualizacoes.timer` (`OnCalendar=Fri 01:00`, `Persistent=true`).
 - `/usr/local/sbin/media-stack-update` (no CT 102) — atualiza com rollback.
-- Um verbo novo no `/usr/local/sbin/ha-pve-power` do host, `midia updates`, para o
-  HA chamar o verificador dentro do CT 102. O wrapper tem lista fechada de comandos;
-  o verbo entra nela e nao aceita argumento nenhum.
-- Um `command_line` sensor no Home Assistant (`sensor.midia_atualizacoes_pendentes`)
-  lendo esse verbo, com `scan_interval` de 6 horas.
+- Verbo `midia updates` no `/usr/local/sbin/ha-pve-power`, sem argumento, para o HA
+  ler o relatorio. O wrapper tem lista fechada de comandos; o verbo entra nela.
+- `sensor.atualizacoes_pendentes` no Home Assistant, `scan_interval` de 6 horas.
 
 **Verificacao (por mutacao):** apontar o *health check* para um servico parado de
-proposito e confirmar que ele acusa falha e dispara o rollback. Um verificador que
-so sabe dizer "esta tudo bem" nao prova nada. Confirmar tambem que, apos o rollback,
-os digests voltaram aos anotados.
+proposito e confirmar que ele acusa falha e dispara o rollback; confirmar que os
+digests voltaram aos anotados. E desligar um guest antes da checagem para confirmar
+que ele aparece como "nao verificado", e nao como "sem atualizacoes".
 
----
+### Unidade 6 — Parar de transcodificar
 
-### Unidade 6 — Mais CPU para o Jellyfin
+**O diagnostico, medido em 01/09.** Das 48 sessoes de reproducao registradas no
+Jellyfin, **30 foram transcodificacao completa**. O log de ffmpeg mostra o que
+acontece:
 
-**O que faz:** `cores` de 2 para 4 no CT 201. A RAM fica em 2 GB.
+    Stream #0:0: Video: hevc (Main 10), yuv420p10le       <- o arquivo
+    scale=...min(1620,1080*a)...                          <- reduzindo para 1080p
+    Stream #0:0: Video: h264, yuv420p                     <- o que sai
+    Audio: eac3 (Dolby Digital Plus + Dolby Atmos)
 
-**Por que so CPU:** a GTX 760 esta dedicada a VM 120, entao transcodificacao e por
-CPU, e o host tem 12 nucleos ociosos. Ja a memoria do host esta apertada (18,5 GB
-alocados para 15 GB fisicos) e o Jellyfin usa 166 MB dos 2 GB que tem — subir RAM
-seria piorar o aperto para resolver um problema que nao existe.
+E o log de sessoes mostra a causa:
 
-**Documentacao junto:** registrar por que nao ha aceleracao por hardware, para
-ninguem perder uma tarde procurando o `/dev/dri` que nao existe.
+    reported by app "Jellyfin Web" 10.11.11    <- todas as reproducoes
 
-**Verificacao:** `nproc` dentro do container devolve 4.
+**Assiste-se pelo navegador nos tres aparelhos** (iPhone, PC e TVs). Navegador nao
+decodifica HEVC 10 bits nem E-AC3 Atmos, entao o servidor reescreve cada quadro em
+tempo real, em 2 nucleos, sem GPU. E isso que trava.
 
----
+**Nao e disco.** O HD entrega perto de 100 MB/s; um 4K a 100 Mbps pede 12 MB/s. O
+disco nunca foi o gargalo, e por isso a ideia de encenar o filme num SSD foi
+descartada — alem de nao haver espaco: os dois SSDs de 112 GB estao inteiramente
+comprometidos, sobram ~36 GB fisicos, menos que um unico 4K.
+
+**A correcao e no cliente:**
+
+    iPhone            app Jellyfin (App Store)              — decodifica HEVC 10 bits em hardware
+    PC                Jellyfin Media Player (desktop)       — baseado em mpv, toca tudo
+    TV do quarto      canal Jellyfin na loja do Roku        — Philco/Roku
+    TV da sala        Samsung AU7700 (Tizen) — ver abaixo
+
+A TV da sala e o unico caso sem solucao de loja: o app Tizen exige modo
+desenvolvedor e a instalacao expira a cada 60 dias. Tres saidas, em ordem de
+recomendacao: um Fire TV Stick 4K (app oficial, resolve de vez); o sideload com a
+renovacao periodica; ou manter o navegador so nela, aceitando que ali havera
+conversao.
+
+**Folga no servidor:** `cores` de 2 para 6 no CT 201, para que a transcodificacao
+residual (a TV da sala, ou um convidado no navegador) deixe de travar. A RAM fica em
+2 GB: o Jellyfin usa 166 MB, e a memoria do host e que esta apertada (18,5 GB
+alocados para 15 GB fisicos).
+
+**A GPU nao entra na conta.** A GTX 760 esta dedicada a VM 120, mas mesmo livre nao
+ajudaria: e Kepler, nao decodifica HEVC nem codifica HEVC.
+
+**Verificacao:** reproduzir o mesmo arquivo pelo app nativo e confirmar, no log, que
+nao aparece nenhum `FFmpeg.Transcode` novo — so `DirectPlay`. Um teste que so olha
+"ficou fluido?" nao distingue melhora real de rede boa naquele minuto.
+
+**Documentacao junto:** registrar no runbook que o gargalo e conversao, nao disco,
+para ninguem daqui a um ano comprar SSD para resolver isso.
 
 ## Tratamento de erro
 
