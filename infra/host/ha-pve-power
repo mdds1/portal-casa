@@ -1,0 +1,102 @@
+#!/bin/sh
+set -eu
+ORIG=${SSH_ORIGINAL_COMMAND:-}
+
+# backup_age: idade em horas do dump mais recente; -1 se nao houver nenhum.
+# Somente leitura, sem alvo -- tratado antes do parse de TYPE/ACTION/ID.
+if [ "$ORIG" = "backup_age" ]; then
+  recente=$(ls -t /mnt/drive/dump/*.vma.zst /mnt/drive/dump/*.tar.zst 2>/dev/null | head -1)
+  if [ -z "$recente" ]; then
+    echo -1
+  else
+    echo $(( ( $(date +%s) - $(stat -c %Y "$recente") ) / 3600 ))
+  fi
+  exit 0
+fi
+
+# updates: relatorio de atualizacoes pendentes no parque, gerado pelo timer
+# semanal verifica-atualizacoes.timer. Somente leitura, sem alvo -- tratado
+# antes do parse de TYPE/ACTION/ID, igual ao backup_age acima.
+if [ "$ORIG" = "updates" ]; then
+  if [ -f /var/lib/portal/atualizacoes.txt ]; then
+    cat /var/lib/portal/atualizacoes.txt
+  else
+    echo "nunca verificado"
+  fi
+  exit 0
+fi
+
+set -- $ORIG
+[ $# -ge 2 ] || { echo invalid; exit 2; }
+TYPE=$1
+ACTION=$2
+ID=${3:-}
+case "$TYPE:$ID" in
+  vm:110|vm:120|vm:301|ct:100|ct:102|ct:104|ct:201) ;;
+  gamebox:) ;;
+  host:) ;;
+  *) echo denied; exit 3 ;;
+esac
+
+# Desligamento do proprio Proxmox. So aceita a acao "shutdown"; qualquer outra e
+# recusada. Derruba tudo junto, inclusive o Home Assistant.
+if [ "$TYPE" = "host" ]; then
+  case "$ACTION" in
+    shutdown)
+      nohup sh -c "sleep 2; /sbin/shutdown -h now" >/dev/null 2>&1 &
+      echo scheduled
+      ;;
+    *) echo invalid; exit 2 ;;
+  esac
+  exit 0
+fi
+if [ "$TYPE" = "gamebox" ]; then
+  case "$ACTION" in
+    exit_console)
+      ssh -i /root/.ssh/ha_batocera_control_rsa -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/root/.ssh/known_hosts root@192.168.15.13 'nohup sh -c "sleep 1; batocera-es-swissknife --emukill 5 || true; pkill -f pcsx2-qt || true; pkill -f emulatorlauncher || true; batocera-es-swissknife --restart || true" >/tmp/ha-exit-console.log 2>&1 &'
+      echo scheduled
+      ;;
+    *) echo invalid; exit 2 ;;
+  esac
+  exit 0
+fi
+case "$TYPE" in
+  vm) TOOL=qm ;;
+  ct) TOOL=pct ;;
+  *) echo invalid; exit 2 ;;
+esac
+status() {
+  $TOOL status "$ID" | awk '{print $2}'
+}
+case "$ACTION" in
+  status)
+    status
+    ;;
+  start)
+    if [ "$(status)" = "running" ]; then echo running; exit 0; fi
+    $TOOL start "$ID"
+    sleep 1
+    status
+    ;;
+  shutdown)
+    if [ "$(status)" != "running" ]; then echo stopped; exit 0; fi
+    if [ "$TYPE" = "vm" ]; then
+      qm shutdown "$ID" --timeout 60 || true
+    else
+      pct shutdown "$ID" --timeout 60 || true
+    fi
+    sleep 1
+    status
+    ;;
+  reboot)
+    [ "$TYPE:$ID" = "vm:120" ] || { echo denied; exit 3; }
+    if [ "$(status)" != "running" ]; then
+      qm start "$ID"
+    else
+      qm reboot "$ID" || { qm stop "$ID"; sleep 3; qm start "$ID"; }
+    fi
+    sleep 1
+    status
+    ;;
+  *) echo invalid; exit 2 ;;
+esac

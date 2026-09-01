@@ -1,0 +1,107 @@
+#!/usr/bin/python3
+"""Relatorio de atualizacoes pendentes no parque inteiro.
+
+Cobre pacotes do host, pacotes de cada guest que tenha canal de shell, e as
+imagens Docker do CT 102.
+
+Regra central: maquina desligada e reportada como "nao verificada", NUNCA como
+"sem atualizacoes". Silencio nao pode ser confundido com boa noticia — foi
+assim que o Jellyfin passou dois dias sem backup sem ninguem ver.
+
+Escreve /var/lib/portal/atualizacoes.txt e imprime o mesmo conteudo.
+"""
+import json
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+RELATORIO = Path("/var/lib/portal/atualizacoes.txt")
+CT_DOCKER = "102"
+
+
+def roda(args, entrada=None, prazo=180):
+    return subprocess.run(args, capture_output=True, text=True, input=entrada, timeout=prazo)
+
+
+def conta_apt(prefixo):
+    """Numero de pacotes que `apt` atualizaria. prefixo permite rodar dentro
+    de um container via `pct exec`."""
+    roda(prefixo + ["apt-get", "update", "-qq"])
+    saida = roda(prefixo + ["apt-get", "-s", "upgrade"])
+    return sum(1 for linha in saida.stdout.splitlines() if linha.startswith("Inst "))
+
+
+def guests():
+    """(tipo, vmid, nome, estado) de todos os guests."""
+    saida = roda(["pvesh", "get", "/cluster/resources", "--type", "vm", "--output-format", "json"])
+    for r in json.loads(saida.stdout or "[]"):
+        yield r.get("type"), str(r.get("vmid")), r.get("name") or "sem-nome", r.get("status")
+
+
+def imagens_docker():
+    """Linhas sobre imagens com atualizacao disponivel no CT 102."""
+    estado = roda(["pct", "status", CT_DOCKER]).stdout.split()
+    if len(estado) < 2 or estado[1] != "running":
+        return ["imagens Docker: nao verificado (CT 102 desligado)"]
+
+    listagem = roda(["pct", "exec", CT_DOCKER, "--", "docker", "ps", "--format", "{{.Image}}"])
+    nomes = sorted(set(filter(None, listagem.stdout.split())))
+    if not nomes:
+        return ["imagens Docker: nao verificado (nenhum container no ar)"]
+
+    linhas, pendentes = [], 0
+    for img in nomes:
+        antes = roda(["pct", "exec", CT_DOCKER, "--", "docker", "image", "inspect",
+                      "--format", "{{.Id}}", img]).stdout.strip()
+        puxou = roda(["pct", "exec", CT_DOCKER, "--", "docker", "pull", "-q", img], prazo=600)
+        if puxou.returncode != 0:
+            linhas.append(f"imagem {img}: nao verificado (falha ao consultar o registro)")
+            continue
+        depois = roda(["pct", "exec", CT_DOCKER, "--", "docker", "image", "inspect",
+                       "--format", "{{.Id}}", img]).stdout.strip()
+        if antes and depois and antes != depois:
+            linhas.append(f"imagem {img}: atualizacao disponivel")
+            pendentes += 1
+    linhas.append(f"imagens Docker: {pendentes} com atualizacao")
+    return linhas
+
+
+def main():
+    linhas = [f"verificado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]
+
+    try:
+        linhas.append(f"host pve: {conta_apt([])} pacote(s)")
+    except (subprocess.TimeoutExpired, OSError) as erro:
+        linhas.append(f"host pve: nao verificado ({erro})")
+
+    for tipo, vmid, nome, estado in sorted(guests(), key=lambda g: int(g[1])):
+        if estado != "running":
+            linhas.append(f"{tipo} {vmid} ({nome}): nao verificado (desligado)")
+            continue
+        if tipo != "lxc":
+            # VMs nao tem canal de shell direto pelo host. A VM 111 (Home
+            # Assistant) tem guest agent, mas HAOS nao usa apt.
+            linhas.append(f"{tipo} {vmid} ({nome}): nao verificado (sem canal de shell)")
+            continue
+        tem_apt = roda(["pct", "exec", vmid, "--", "sh", "-c", "command -v apt-get"])
+        if tem_apt.returncode != 0:
+            linhas.append(f"{tipo} {vmid} ({nome}): nao verificado (sem apt)")
+            continue
+        try:
+            n = conta_apt(["pct", "exec", vmid, "--"])
+            linhas.append(f"{tipo} {vmid} ({nome}): {n} pacote(s)")
+        except subprocess.TimeoutExpired:
+            linhas.append(f"{tipo} {vmid} ({nome}): nao verificado (tempo esgotado)")
+
+    linhas += imagens_docker()
+
+    texto = "\n".join(linhas) + "\n"
+    RELATORIO.parent.mkdir(parents=True, exist_ok=True)
+    RELATORIO.write_text(texto, encoding="utf-8")
+    print(texto, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

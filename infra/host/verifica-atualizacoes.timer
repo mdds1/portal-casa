@@ -1,0 +1,10 @@
+[Unit]
+Description=Verificacao semanal de atualizacoes — sexta 01:00, ou no proximo boot
+
+[Timer]
+OnCalendar=Fri 01:00
+Persistent=true
+RandomizedDelaySec=900
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,7 @@
+[Unit]
+Description=Relatorio de atualizacoes pendentes no parque
+After=pve-guests.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/verifica-atualizacoes
