@@ -192,3 +192,61 @@ guest for mais lento que o starloco, o portal vai gravar `ok=0` numa maquina que
 desligou. **Antes de confiar no log de um shutdown de VM, cronometrar a VM 301.**
 O ajuste, se preciso, e subir o `msLimite` — os dois numeros estao comentados um
 no outro.
+
+---
+
+# Terceira fatia — a tela de Administracao (01/09/2026)
+
+Usuarios, inventario e registro. Rotas novas, todas com `exigirPapel("admin")`:
+
+    GET  /administracao
+    POST /administracao/usuario   acao = senha | ativo | papel | criar
+    POST /administracao/maquina   descricao, acionavel, papel_minimo
+
+## As duas travas contra tiro no pe
+
+Vivem em `src/admin/regras.ts`, separadas da tela de proposito: a regra e
+testavel sozinha, e a tela so obedece.
+
+1. **Contra si mesmo.** Ninguem desativa nem rebaixa a propria conta. E o jeito
+   mais rapido de perder o acesso, e sempre por engano.
+2. **Contra a casa.** Nenhuma mudanca pode deixar **zero admins ativos**. Se
+   deixasse, ninguem entraria na Administracao para desfazer, e o conserto
+   passaria a exigir mexer no banco por SSH.
+
+A segunda conta admins *ativos*: um admin desativado nao segura a casa. Isso tem
+teste proprio, porque a versao ingenua ("nao deixe mexer no ultimo usuario")
+passa nos casos obvios e falha exatamente nesse.
+
+## Senha: minimo de 10
+
+E nao oito. O portal e alcancavel da internet pelo tunel, e as senhas de fabrica
+tinham exatamente oito — exigir mais forca a troca a ser troca de verdade.
+
+**A senha nunca entra no `acoes_log` nem volta no HTML**, inclusive no caminho de
+recusa, que e onde e mais facil vazar sem perceber. Ha teste para os dois.
+
+## O registro finalmente aparece
+
+O `acoes_log` existia desde a primeira fatia e **nenhuma tela jamais o mostrou**.
+Agora as 40 acoes mais recentes aparecem, incluindo as recusadas.
+
+## Uma armadilha de teste que custou tempo
+
+Os testes da tela sobem um servidor de verdade. Fechar com `s.close()` no fim do
+corpo do teste **parece** funcionar — ate a primeira assercao falhar: dali em
+diante o `close` nunca roda, o laco de eventos nao esvazia e a suite PENDURA em
+vez de reportar. Justo no momento em que o teste existe para avisar.
+
+O fechamento passou para `t.after(() => s.close())`. Descoberto ao rodar as
+mutacoes: com o codigo quebrado de proposito, a suite travava em vez de acusar.
+
+## Verificado em producao
+
+    pct exec 103 -- curl .../administracao       -> 302 para /entrar (sem sessao)
+    via nginx, Host: portal.dinizismo.com.br     -> 302 para /entrar
+    /saude                                       -> {"ok":true}
+
+**O portal escuta na 3000**, nao na 8080; e o nginx so responde pelo
+`server_name` certo — `https://127.0.0.1/` devolve 404 pelo vhost padrao, e isso
+nao e defeito do portal.
