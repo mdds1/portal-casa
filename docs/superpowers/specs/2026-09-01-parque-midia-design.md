@@ -136,9 +136,11 @@ automatico e o que separa as duas abordagens.
 - `/usr/local/sbin/media-stack-check` (no CT 102) — imprime uma linha por imagem
   com atualizacao pendente; vazio quando tudo atual.
 - `/usr/local/sbin/media-stack-update` (no CT 102) — atualiza com rollback.
-- Um verbo novo no `/usr/local/sbin/ha-pve-power` do host para o HA chamar o
-  verificador. O wrapper tem lista fechada de comandos; o verbo entra nela.
-- Um `command_line` sensor no Home Assistant lendo esse verbo.
+- Um verbo novo no `/usr/local/sbin/ha-pve-power` do host, `midia updates`, para o
+  HA chamar o verificador dentro do CT 102. O wrapper tem lista fechada de comandos;
+  o verbo entra nela e nao aceita argumento nenhum.
+- Um `command_line` sensor no Home Assistant (`sensor.midia_atualizacoes_pendentes`)
+  lendo esse verbo, com `scan_interval` de 6 horas.
 
 **Verificacao (por mutacao):** apontar o *health check* para um servico parado de
 proposito e confirmar que ele acusa falha e dispara o rollback. Um verificador que
