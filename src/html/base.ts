@@ -26,105 +26,237 @@ export function faixaDeAviso(acao: unknown, alvo: unknown): string {
 }
 
 export const ESTILO = `
-:root { color-scheme: light dark; --fundo:#f6f6f7; --cartao:#fff; --borda:#e2e2e5; --texto:#1a1a1c; --fraco:#6b6b70; }
-@media (prefers-color-scheme: dark) {
-  :root { --fundo:#151517; --cartao:#1e1e21; --borda:#2e2e33; --texto:#ececee; --fraco:#9a9aa0; }
-}
-* { box-sizing: border-box; }
-body { margin:0; background:var(--fundo); color:var(--texto);
-  font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
-header { display:flex; gap:1rem; align-items:center; flex-wrap:wrap;
-  padding:.75rem 1rem; background:var(--cartao); border-bottom:1px solid var(--borda); }
-header a { color:inherit; text-decoration:none; padding:.35rem .6rem; border-radius:6px; }
-header a[aria-current="page"] { background:var(--fundo); font-weight:600; }
-main { padding:1rem; max-width:1100px; margin:0 auto; }
-.grade { display:grid; gap:.75rem; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
-.cartao { background:var(--cartao); border:1px solid var(--borda); border-radius:10px; padding:.85rem; }
-.cartao h3 { margin:0 0 .5rem; font-size:1rem; display:flex; align-items:center; gap:.5rem; }
-.ponto { width:.6rem; height:.6rem; border-radius:50%; flex:none; }
-.ponto.ok{background:#2e9e4f}.ponto.parado{background:#8a8a90}
-.ponto.erro{background:#d13b3b}.ponto.velho{background:#d19a1e}
-.cartao dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:.15rem .5rem; }
-.cartao dt { color:var(--fraco); }
-.cartao dd { margin:0; text-align:right; }
-.nota { margin:.5rem 0 0; color:var(--fraco); font-size:.85rem; }
-form.sair { margin-left:auto; }
-button { font:inherit; padding:.35rem .7rem; border-radius:6px;
-  border:1px solid var(--borda); background:var(--fundo); color:inherit; cursor:pointer; }
-@media (max-width:520px) { .grade { grid-template-columns:1fr; } }
-.acoes { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem; }
-.acao { display:inline; }
-.acao button { padding:.25rem .5rem; font-size:.8rem; }
-.perigo button { border-color:#d13b3b66; color:#d13b3b; }
+/* =========================================================================
+   Portal da Casa — folha unica.
 
-/* Tela de login: cartao unico e centrado. Ela nao usa o layout() porque nao
-   tem menu nem botao de sair — mas usa este mesmo bloco de estilo, senao
-   aparece como HTML cru, que foi como ela nasceu. */
-.entrada { min-height:100vh; display:grid; place-items:center; padding:1rem; }
-.entrada form { background:var(--cartao); border:1px solid var(--borda);
-  border-radius:10px; padding:1.5rem; width:100%; max-width:320px;
-  display:flex; flex-direction:column; gap:.75rem; }
-.entrada h1 { margin:0 0 .25rem; font-size:1.15rem; }
-.entrada label { display:flex; flex-direction:column; gap:.25rem;
-  font-size:.85rem; color:var(--fraco); }
-.entrada input { font:inherit; color:inherit; padding:.5rem .6rem;
-  border:1px solid var(--borda); border-radius:6px; background:var(--fundo); }
-.entrada button { margin-top:.25rem; padding:.55rem; }
-.erro { margin:0; padding:.5rem .6rem; border-radius:6px; font-size:.85rem;
-  background:#d13b3b22; border:1px solid #d13b3b66; }
-.faixa { margin:0 0 1rem; padding:.6rem .75rem; border-radius:8px; font-size:.9rem; }
-.faixa.ruim { background:#d13b3b22; border:1px solid #d13b3b66; }
-.faixa.boa { background:#2e9e4f22; border:1px solid #2e9e4f66; }
-table { border-collapse:collapse; width:100%; background:var(--cartao);
-  border:1px solid var(--borda); border-radius:10px; }
-th,td { text-align:left; padding:.5rem .65rem; border-bottom:1px solid var(--borda); }
-th { color:var(--fraco); font-weight:600; }
-tr:last-child td { border-bottom:0; }
-small { color:var(--fraco); }
-/* ---- Mapa ---------------------------------------------------------------
-   A tela responde "o que existe na casa, onde mora, e esta de pe?". Cada
-   categoria e um <details>: o navegador abre e fecha sozinho, sem script.
-   O item e uma grade de colunas fixas — nome, endereco, maquina — porque
-   administrar e varrer a mesma coluna com o olho, nao ler frases. */
-.mapa { display:grid; gap:.85rem; }
-.secao { background:var(--cartao); border:1px solid var(--borda); border-radius:10px; }
-.secao > summary { cursor:pointer; list-style:none; padding:.7rem .9rem;
-  display:flex; align-items:center; gap:.6rem; font-weight:600; border-radius:10px; }
+   O conteudo desta casa e DADO: portas, tempos, percentuais, enderecos. Por
+   isso a tipografia trabalha em dois registros — sem-serifa para o que se le,
+   monoespacado para o que se compara. Numero embaixo de numero, alinhado a
+   direita, e o que deixa a pagina varrivel de relance.
+
+   A regua pontilhada que liga rotulo e valor e a assinatura da casa: quando a
+   distancia entre os dois cresce, o olho continua achando o par.
+
+   Tema claro fixo, por pedido: seguir o tema do sistema deixava o painel
+   escuro na maquina do dono. Para voltar a seguir o sistema, basta reintroduzir
+   um bloco prefers-color-scheme com os mesmos nomes de variavel.
+   ========================================================================= */
+:root {
+  color-scheme: light;
+  --fundo:#fafafb;
+  --cartao:#ffffff;
+  --borda:#e6e7ea;
+  --borda-forte:#d3d5da;
+  --texto:#16181d;
+  --fraco:#6b7280;
+  --acento:#1f6f6b;
+  --acento-fraco:#eaf3f2;
+  /* Estado nao e semaforo: parado nao e defeito, e escolha. So o que esta
+     mesmo errado fica vermelho. */
+  --no-ar:#17795e;
+  --parado:#9aa0a6;
+  --erro:#b3261e;
+  --alerta:#8a6100;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --raio:8px;
+}
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; background:var(--fundo); color:var(--texto);
+  font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  letter-spacing:-.005em;
+}
+
+/* ---- Cabecalho: uma regua fina, nao uma barra pesada -------------------- */
+header {
+  display:flex; align-items:center; gap:.25rem; flex-wrap:wrap;
+  padding:.6rem 1.25rem; background:var(--cartao);
+  border-bottom:1px solid var(--borda); position:sticky; top:0; z-index:5;
+}
+header a {
+  color:var(--fraco); text-decoration:none; padding:.35rem .65rem;
+  border-radius:6px; font-size:.9rem;
+}
+header a:hover { color:var(--texto); background:var(--fundo); }
+header a[aria-current="page"] { color:var(--texto); font-weight:600; background:var(--acento-fraco); }
+header a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline:2px solid var(--acento); outline-offset:2px;
+}
+.sair { margin-left:auto; }
+.sair button { color:var(--fraco); }
+
+main { padding:1.75rem 1.25rem 3rem; max-width:1080px; margin:0 auto; }
+h1 {
+  margin:0 0 .2rem; font-size:1.55rem; font-weight:650; letter-spacing:-.02em;
+}
+main > .nota { margin:0 0 1.5rem; color:var(--fraco); font-size:.9rem; }
+a { color:var(--acento); text-decoration:none; }
+a:hover { text-decoration:underline; text-underline-offset:2px; }
+
+/* ---- Botoes: contorno fino, sem preenchimento. A acao e o texto --------- */
+button {
+  font:inherit; font-size:.82rem; color:var(--texto); background:var(--cartao);
+  border:1px solid var(--borda-forte); border-radius:6px;
+  padding:.3rem .7rem; cursor:pointer; transition:background .12s,border-color .12s;
+}
+button:hover { background:var(--fundo); border-color:var(--fraco); }
+button:active { background:var(--borda); }
+.perigo button { color:var(--erro); border-color:#e8c9c6; }
+.perigo button:hover { background:#fdf3f2; border-color:var(--erro); }
+.acoes { display:flex; gap:.4rem; flex-wrap:wrap; }
+.acao { display:inline; margin:0; }
+
+/* ---- Ponto de estado ---------------------------------------------------- */
+.ponto {
+  width:7px; height:7px; border-radius:50%; display:inline-block;
+  background:var(--parado); flex:none;
+}
+.ponto.ok { background:var(--no-ar); }
+.ponto.parado { background:var(--parado); }
+.ponto.erro { background:var(--erro); }
+.ponto.velho { background:var(--alerta); }
+
+/* ---- Cartoes (Inicio): a regua pontilhada ------------------------------- */
+.grade { display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); }
+.cartao {
+  background:var(--cartao); border:1px solid var(--borda);
+  border-radius:var(--raio); padding:1.1rem 1.15rem 1.15rem;
+}
+.cartao h3 {
+  margin:0 0 .9rem; font-size:.78rem; font-weight:650; text-transform:uppercase;
+  letter-spacing:.08em; color:var(--fraco);
+  display:flex; align-items:center; gap:.5rem;
+}
+.cartao dl { margin:0; display:grid; gap:.05rem; }
+.cartao div.par {
+  display:flex; align-items:baseline; gap:.4rem; padding:.28rem 0;
+}
+.cartao dt { color:var(--fraco); font-size:.9rem; white-space:nowrap; }
+.cartao .fio {
+  flex:1; border-bottom:1px dotted var(--borda-forte); transform:translateY(-.2em);
+  min-width:1rem;
+}
+.cartao dd {
+  margin:0; font-family:var(--mono); font-size:.84rem;
+  font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right;
+}
+.cartao .nota { margin:.9rem 0 0; color:var(--fraco); font-size:.78rem; }
+
+/* ---- Mapa --------------------------------------------------------------- */
+.mapa { display:grid; gap:.9rem; }
+.secao { background:var(--cartao); border:1px solid var(--borda); border-radius:var(--raio); }
+.secao > summary {
+  cursor:pointer; list-style:none; padding:.85rem 1.1rem;
+  display:flex; align-items:center; gap:.6rem;
+  font-size:.78rem; font-weight:650; text-transform:uppercase; letter-spacing:.08em;
+  border-radius:var(--raio);
+}
 .secao > summary::-webkit-details-marker { display:none; }
-.secao > summary::before { content:"▸"; color:var(--fraco); transition:transform .15s; }
-.secao[open] > summary::before { transform:rotate(90deg); }
-.secao[open] > summary { border-bottom:1px solid var(--borda); border-radius:10px 10px 0 0; }
-.secao > summary:focus-visible { outline:2px solid currentColor; outline-offset:-2px; }
-.conta { margin-left:auto; font-weight:400; font-size:.8rem; color:var(--fraco);
-  font-variant-numeric:tabular-nums; }
-.grupo { padding:.6rem .9rem .8rem; }
-.grupo + .grupo { border-top:1px solid color-mix(in srgb, var(--borda) 50%, transparent); }
-.grupo > h3 { margin:0 0 .45rem; font-size:.72rem; font-weight:700;
-  text-transform:uppercase; letter-spacing:.08em; color:var(--fraco); }
-.itens { list-style:none; margin:0; padding:0; display:grid; gap:.3rem; }
-.item { display:grid; gap:.1rem .6rem; align-items:center; padding:.4rem .5rem;
-  border-radius:7px; grid-template-columns:auto 1fr auto auto;
-  grid-template-areas:"ponto nome endereco maquina" ". nota nota nota"; }
-.item:hover { background:color-mix(in srgb, var(--borda) 35%, transparent); }
-.item .ponto { grid-area:ponto; }
-.item .nome { grid-area:nome; font-weight:600; }
-.item .endereco { grid-area:endereco; font-variant-numeric:tabular-nums;
-  font-size:.82rem; color:var(--fraco); }
-.item .maquina { grid-area:maquina; font-size:.75rem; color:var(--fraco);
-  border:1px solid var(--borda); border-radius:999px; padding:.1rem .5rem; white-space:nowrap; }
-.item .nota { grid-area:nota; font-size:.78rem; color:var(--fraco); }
-.maquinas { display:grid; gap:.5rem; padding:.2rem .9rem .9rem; }
-.hospede { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
-  padding:.5rem .6rem; border:1px dashed var(--borda); border-radius:8px; }
-.hospede .quem { font-size:.82rem; }
-.hospede .acoes { margin-top:0; margin-left:auto; }
-@media (max-width:640px) {
-  .item { grid-template-columns:auto 1fr auto;
-    grid-template-areas:"ponto nome endereco" ". maquina maquina" ". nota nota"; }
-  .item .maquina { justify-self:start; }
+.secao > summary::before {
+  content:""; width:5px; height:5px; border-right:1.5px solid var(--fraco);
+  border-bottom:1.5px solid var(--fraco); transform:rotate(-45deg);
+  transition:transform .15s; flex:none;
+}
+.secao[open] > summary::before { transform:rotate(45deg); }
+.secao[open] > summary { border-bottom:1px solid var(--borda); border-radius:var(--raio) var(--raio) 0 0; }
+.conta {
+  margin-left:auto; font-weight:400; letter-spacing:0; text-transform:none;
+  font-family:var(--mono); font-size:.78rem; color:var(--fraco);
+  font-variant-numeric:tabular-nums;
+}
+.grupo { padding:.9rem 1.1rem 1rem; }
+.grupo + .grupo { border-top:1px solid var(--borda); }
+.grupo > h3 {
+  margin:0 0 .55rem; font-size:.7rem; font-weight:650; text-transform:uppercase;
+  letter-spacing:.09em; color:var(--fraco);
+}
+.itens { list-style:none; margin:0; padding:0; display:grid; gap:.1rem; }
+.item {
+  display:grid; gap:.05rem .85rem; align-items:baseline; padding:.45rem .55rem;
+  border-radius:6px; margin:0 -.55rem;
+  grid-template-columns:auto minmax(8rem,auto) 1fr auto auto;
+  grid-template-areas:"ponto nome fio endereco maquina" ". nota nota nota nota";
+}
+.item:hover { background:var(--fundo); }
+.item .ponto { grid-area:ponto; transform:translateY(-1px); }
+.item .nome { grid-area:nome; font-weight:550; }
+.item .fio { grid-area:fio; border-bottom:1px dotted var(--borda-forte); transform:translateY(-.25em); }
+.item .endereco {
+  grid-area:endereco; font-family:var(--mono); font-size:.8rem;
+  color:var(--fraco); font-variant-numeric:tabular-nums;
+}
+.item .maquina {
+  grid-area:maquina; font-family:var(--mono); font-size:.72rem; color:var(--fraco);
+  background:var(--fundo); border:1px solid var(--borda);
+  border-radius:999px; padding:.08rem .5rem; white-space:nowrap;
+}
+.item .nota { grid-area:nota; font-size:.8rem; color:var(--fraco); padding-top:.1rem; }
+.maquinas { display:grid; gap:.5rem; padding:0 1.1rem 1rem; }
+.hospede {
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+  padding:.55rem .75rem; background:var(--fundo);
+  border:1px solid var(--borda); border-radius:6px;
+}
+.hospede .quem { font-family:var(--mono); font-size:.78rem; color:var(--fraco); }
+.hospede .acoes { margin-left:auto; }
+
+/* ---- Tabela (Infraestrutura) -------------------------------------------- */
+table {
+  border-collapse:collapse; width:100%; background:var(--cartao);
+  border:1px solid var(--borda); border-radius:var(--raio); overflow:hidden;
+  font-size:.9rem;
+}
+th, td { text-align:left; padding:.6rem .8rem; border-bottom:1px solid var(--borda); }
+th {
+  font-size:.7rem; font-weight:650; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--fraco); background:var(--fundo); white-space:nowrap;
+}
+tbody tr:last-child td { border-bottom:0; }
+tbody tr:hover { background:var(--fundo); }
+td small { color:var(--fraco); }
+td:nth-child(1), td:nth-child(4), td:nth-child(5) {
+  font-family:var(--mono); font-size:.82rem; font-variant-numeric:tabular-nums;
 }
 
+/* ---- Faixa de aviso ----------------------------------------------------- */
+.faixa {
+  margin:0 0 1.25rem; padding:.7rem .9rem; border-radius:6px; font-size:.9rem;
+  border:1px solid var(--borda);
+}
+.faixa.boa { background:var(--acento-fraco); border-color:#cfe4e1; color:#12564f; }
+.faixa.ruim { background:#fdf3f2; border-color:#e8c9c6; color:#8c1d17; }
+
+/* ---- Entrada ------------------------------------------------------------ */
+.entrada { min-height:100vh; display:grid; place-items:center; padding:1rem; }
+.entrada form {
+  background:var(--cartao); border:1px solid var(--borda); border-radius:var(--raio);
+  padding:1.75rem; width:min(22rem,100%); display:grid; gap:.75rem;
+}
+.entrada h1 { font-size:1.15rem; margin-bottom:.5rem; }
+.entrada label { font-size:.85rem; color:var(--fraco); display:grid; gap:.3rem; }
+.entrada input {
+  font:inherit; padding:.55rem .7rem; border:1px solid var(--borda-forte);
+  border-radius:6px; background:var(--cartao); color:var(--texto); width:100%;
+}
+.entrada input:focus-visible { outline:2px solid var(--acento); outline-offset:1px; border-color:var(--acento); }
+.entrada button { padding:.55rem; font-size:.9rem; background:var(--acento); color:#fff; border-color:var(--acento); }
+.entrada button:hover { background:#1a5f5b; border-color:#1a5f5b; }
+.entrada .erro { color:var(--erro); font-size:.85rem; margin:0; }
+
+@media (max-width:720px) {
+  main { padding:1.25rem .9rem 2.5rem; }
+  .grade { grid-template-columns:1fr; }
+  .item {
+    grid-template-columns:auto 1fr auto;
+    grid-template-areas:"ponto nome endereco" ". maquina maquina" ". nota nota";
+  }
+  .item .fio { display:none; }
+  .item .maquina { justify-self:start; margin-top:.15rem; }
+  .hospede .acoes { margin-left:0; width:100%; }
+}
 `;
+
 
 // Poder minimo, na mesma escala da tabela papeis (admin=100, casa=10) --
 // nao o nome do papel. E a mesma mecanica que FILTRO (db/inventario.ts) e

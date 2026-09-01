@@ -76,6 +76,7 @@ export function rotaMapa(deps: DepsMapa): RequestHandler {
                 return `<li class="item">
 <span class="ponto ${classePonto(estado)}"></span>
 <span class="nome">${link(s.url, s.nome)}</span>
+<span class="fio"></span>
 <span class="endereco">${escapar(endereco)}</span>
 <span class="maquina">${escapar(onde)}</span>
 <span class="nota">${escapar(s.descricao)}</span>
