@@ -52,6 +52,27 @@ export function rotaMapa(deps: DepsMapa): RequestHandler {
     const estadoDe = (vmid: number) =>
       pve.dado?.find((x) => x.vmid === vmid)?.estado ?? "desconhecido";
     const classePonto = (e: string) => (e === "running" ? "ok" : e === "desconhecido" ? "erro" : "parado");
+    // O estado cru do Proxmox e ingles e tecnico. Na arvore, quem le quer
+    // saber se a coisa esta de pe, nao o vocabulario do hipervisor.
+    const emPortugues = (e: string) =>
+      e === "running" ? "no ar" : e === "stopped" ? "parada" : e;
+
+    // Cada linha da arvore e um <details> fechado: de fora aparece so o ponto
+    // de estado e o nome, que e o que a pessoa procura ao varrer a tela. O
+    // endereco, a maquina e a descricao so aparecem para quem abriu aquela
+    // linha — era essa pilha de detalhe repetida em toda linha que enchia a
+    // secao.
+    const linha = (
+      classes: string,
+      estado: string,
+      cabeca: string,
+      detalhe: string
+    ) => `<li class="item${classes ? " " + classes : ""}">
+<details class="linha">
+<summary><span class="ponto ${classePonto(estado)}"></span>${cabeca}</summary>
+<div class="detalhe">${detalhe}</div>
+</details>
+</li>`;
 
     const secoes = agrupar(itens)
       .map(([categoria, grupos]) => {
@@ -73,40 +94,58 @@ export function rotaMapa(deps: DepsMapa): RequestHandler {
                   ? `${s.host_checagem ?? ""}${s.host_checagem ? ":" : ""}${s.porta}`
                   : "sem porta";
                 const onde = m ? `${m.tipo.toUpperCase()} ${m.vmid}` : `vmid ${s.maquina_vmid}`;
-                return `<li class="item">
-<span class="ponto ${classePonto(estado)}"></span>
-<span class="nome">${link(s.url, s.nome)}</span>
-<span class="fio"></span>
-<span class="endereco">${escapar(endereco)}</span>
+                return linha(
+                  "",
+                  estado,
+                  `<span class="nome">${link(s.url, s.nome)}</span>`,
+                  `<span class="endereco">${escapar(endereco)}</span>
 <span class="maquina">${escapar(onde)}</span>
-<span class="nota">${escapar(s.descricao)}</span>
-</li>`;
+<span class="nota">${escapar(s.descricao)}</span>`
+                );
               })
               .join("");
-            const titulo = grupo ? `<h3>${escapar(grupo)}</h3>` : "";
-            return `<div class="grupo">${titulo}<ul class="itens">${linhas}</ul></div>`;
+            const vivos = servicos.filter((s) => estadoDe(s.maquina_vmid) === "running").length;
+            return `<details class="grupo" open>
+<summary>${escapar(grupo || "Servicos")}<span class="conta">${vivos} de ${servicos.length}</span></summary>
+<ul class="itens">${linhas}</ul>
+</details>`;
           })
           .join("");
 
-        // As maquinas que hospedam esta categoria, com os botoes que a pessoa
-        // pode usar. Os verbos oferecidos sao os que `podeAgir` aprova — a
-        // mesma funcao que a rota confere depois.
+        // As maquinas que hospedam esta categoria viram mais um grupo da
+        // arvore, no mesmo formato dos servicos, em vez de um bloco solto no
+        // rodape. Os verbos oferecidos sao os que `podeAgir` aprova — a mesma
+        // funcao que a rota confere depois — filtrados pelo estado atual.
         const vmids = [...new Set(grupos.flatMap(([, s]) => s.map((x) => x.maquina_vmid)))];
         const hospedes = vmids
           .map((v) => maquinas.find((m) => m.vmid === v))
           .filter((m): m is Maquina => !!m)
           .map((m) => {
-            const acoes = botoesDaMaquina(deps.db, papel, m.vmid, m.tipo, csrf, "mapa");
-            if (!acoes) return "";
             const estado = estadoDe(m.vmid);
-            return `<div class="hospede">
-<span class="ponto ${classePonto(estado)}"></span>
-<span class="quem">${escapar(m.tipo.toUpperCase())} ${escapar(m.vmid)} · ${escapar(m.nome)} — ${escapar(estado)}</span>
-<div class="acoes">${acoes}</div>
-</div>`;
+            const acoes = botoesDaMaquina(deps.db, papel, m.vmid, m.tipo, csrf, "mapa", estado);
+            return { m, estado, acoes };
           })
-          .join("");
-        const bloco = hospedes ? `<div class="maquinas">${hospedes}</div>` : "";
+          .filter((h) => h.acoes !== "");
+        const bloco = hospedes.length
+          ? `<details class="grupo maquinas" open>
+<summary>Maquinas<span class="conta">${
+              hospedes.filter((h) => h.estado === "running").length
+            } de ${hospedes.length}</span></summary>
+<ul class="itens">${hospedes
+              .map((h) =>
+                linha(
+                  "maq",
+                  h.estado,
+                  `<span class="nome">${escapar(h.m.tipo.toUpperCase())} ${escapar(h.m.vmid)}</span>
+<span class="apelido">${escapar(h.m.nome)}</span>
+<span class="situacao">${escapar(emPortugues(h.estado))}</span>`,
+                  `<span class="nota">${escapar(h.m.descricao)}</span>
+<div class="acoes">${h.acoes}</div>`
+                )
+              )
+              .join("")}</ul>
+</details>`
+          : "";
 
         return `<details class="secao" open>
 <summary>${escapar(categoria)}<span class="conta">${noAr} de ${quantos} no ar</span></summary>

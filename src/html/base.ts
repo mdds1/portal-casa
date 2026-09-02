@@ -317,26 +317,51 @@ button:hover, .acao:hover { border-color: var(--acento); color: var(--acento); }
   font-size: .72rem; color: var(--fraco); font-weight: 400;
 }
 
-.grupo { padding: 0 1.2rem .4rem; }
-.grupo > h4 {
-  margin: .6rem 0 .3rem;
+/* O grupo repete a mecanica da secao um nivel abaixo: aberto por padrao,
+   porque saber o que existe e o trabalho principal da tela. */
+.grupo { padding: 0 1.2rem; border-top: 1px solid rgba(15,23,41,.05); }
+.grupo > summary {
+  cursor: pointer; list-style: none;
+  padding: .5rem 0;
+  display: flex; align-items: center; gap: .5rem;
   font-size: .68rem; text-transform: uppercase; letter-spacing: .1em;
   color: var(--tenue); font-weight: 600;
 }
-.itens { list-style: none; margin: 0; padding: 0; }
-.item {
-  display: flex; align-items: baseline; gap: .5rem;
-  padding: .38rem 0; font-size: .875rem;
-  border-bottom: 1px solid rgba(15,23,41,.05);
+.grupo > summary::-webkit-details-marker { display: none; }
+.grupo > summary::before {
+  content: "›"; color: var(--tenue); font-size: .95rem; letter-spacing: 0;
+  transition: transform .15s ease; display: inline-block;
 }
+.grupo[open] > summary::before { transform: rotate(90deg); }
+
+.itens { list-style: none; margin: 0; padding: 0 0 .4rem; }
+.item { border-bottom: 1px solid rgba(15,23,41,.05); }
 .item:last-child { border-bottom: 0; }
-.item .nome { font-weight: 500; flex: none; }
-.item .endereco, .item .maquina {
+
+/* A linha fechada mostra ponto e nome. Tudo o mais espera ser pedido. */
+.linha > summary {
+  cursor: pointer; list-style: none;
+  display: flex; align-items: baseline; gap: .5rem;
+  padding: .4rem 0 .4rem .3rem; font-size: .875rem;
+  border-radius: 6px;
+}
+.linha > summary::-webkit-details-marker { display: none; }
+.linha > summary:hover { background: rgba(255,255,255,.45); }
+.linha .nome { font-weight: 500; }
+.linha .apelido, .linha .situacao {
+  font-family: var(--mono); font-size: .74rem; color: var(--fraco);
+}
+.linha .situacao { margin-left: auto; }
+
+.detalhe {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem;
+  padding: .1rem 0 .7rem 1.35rem;
+}
+.detalhe .endereco, .detalhe .maquina {
   font-family: var(--mono); font-size: .76rem; color: var(--fraco);
 }
-.item .endereco { flex: none; }
-.item .maquina { margin-left: auto; flex: none; }
-.maquinas { padding: .5rem 1.2rem 1rem; }
+.detalhe .nota { margin: 0; flex: 1 1 14rem; }
+.detalhe .acoes { flex-basis: 100%; margin-top: .2rem; }
 
 /* ---- tabelas ----------------------------------------------------------- */
 
@@ -428,8 +453,8 @@ body.entrar main { max-width: 22rem; padding-top: 12vh; }
   table.admin thead { display: none; }
   table.admin tr { padding: .7rem 1rem; border-bottom: 1px solid var(--risco); }
   table.admin td { border: 0; padding: .25rem 0; }
-  .item { flex-wrap: wrap; }
-  .item .maquina { margin-left: 0; }
+  .linha > summary { flex-wrap: wrap; }
+  .linha .situacao { margin-left: 0; }
 }
 
 `;

@@ -3,12 +3,22 @@ import { listarMaquinas, poderDoPapel } from "../db/inventario.js";
 import { layout, escapar, faixaDeAviso } from "../html/base.js";
 import { tokenCsrf } from "../auth/csrf.js";
 import { podeAgir } from "../acoes/permissao.js";
-import { VERBOS, ROTULOS, ehDestrutivo, type Alvo } from "../acoes/tipos.js";
+import { VERBOS, ROTULOS, ehDestrutivo, type Alvo, type Verbo } from "../acoes/tipos.js";
 import type { DepsTela } from "./inicio.js";
 import type Database from "better-sqlite3";
 
 function gb(bytes: number): string {
   return bytes ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : "—";
+}
+
+// Uma maquina parada nao tem o que desligar, e uma no ar nao tem o que ligar.
+// Oferecer os tres verbos sempre enchia a tela de botoes que nao fazem nada.
+// Quando o estado e desconhecido nao da para escolher, entao oferece tudo:
+// esconder um botao por causa de uma leitura que falhou seria pior.
+function verbosDoEstado(estado: string | undefined): readonly Verbo[] {
+  if (estado === "running") return VERBOS.filter((v) => v !== "start");
+  if (estado === "stopped") return VERBOS.filter((v) => v === "start");
+  return VERBOS;
 }
 
 // Os botoes oferecidos sao exatamente os verbos que podeAgir aprovaria: a
@@ -20,10 +30,11 @@ export function botoesDaMaquina(
   vmid: number,
   classe: "vm" | "ct",
   csrf: string,
-  voltar = "infra"
+  voltar = "infra",
+  estado?: string
 ): string {
   const alvo: Alvo = { tipo: "maquina", vmid, classe };
-  const oferecidos = VERBOS.filter((v) => podeAgir(db, papel, alvo, v).permitido);
+  const oferecidos = verbosDoEstado(estado).filter((v) => podeAgir(db, papel, alvo, v).permitido);
   if (oferecidos.length === 0) return "";
 
   const nome = (db.prepare("SELECT nome FROM maquinas WHERE vmid = ?").get(vmid) as
@@ -106,7 +117,7 @@ export function rotaInfraestrutura(deps: DepsTela): RequestHandler {
 <td>${escapar(m.ip ?? "—")}</td>
 <td>${escapar(vivo ? gb(vivo.memoriaMax) : "—")}</td>
 <td>${m.onboot ? "sim" : "nao"}</td>
-<td><div class="acoes">${botoesDaMaquina(deps.db, papel, m.vmid, m.tipo, csrf)}</div></td>
+<td><div class="acoes">${botoesDaMaquina(deps.db, papel, m.vmid, m.tipo, csrf, "infra", vivo?.estado)}</div></td>
 </tr>`;
     }).join("");
 

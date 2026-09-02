@@ -44,11 +44,21 @@ async function servidor() {
 // item esta DENTRO do galho certo — em vez de so perguntar se ele aparece em
 // algum lugar da pagina, que passaria com a arvore toda embaralhada.
 function categoria(html: string, nome: string): string {
-  const m = html.match(
-    new RegExp(`<details class="secao" open>\\s*<summary>${nome}[\\s\\S]*?</details>`)
+  const inicio = html.search(
+    new RegExp(`<details class="secao" open>\\s*<summary>${nome}[<\\s]`)
   );
-  assert.ok(m, `categoria ${nome} nao encontrada`);
-  return m![0];
+  assert.ok(inicio >= 0, `categoria ${nome} nao encontrada`);
+  // A arvore tem <details> dentro de <details>, entao parar no primeiro
+  // </details> recortaria so o comeco da secao — e as afirmacoes de
+  // CONTENCAO passariam sem ter olhado o galho inteiro. Conta a profundidade.
+  let nivel = 0;
+  const marcas = /<details\b|<\/details>/g;
+  marcas.lastIndex = inicio;
+  for (let m = marcas.exec(html); m; m = marcas.exec(html)) {
+    nivel += m[0] === "</details>" ? -1 : 1;
+    if (nivel === 0) return html.slice(inicio, m.index + m[0].length);
+  }
+  assert.fail(`categoria ${nome} nao fecha`);
 }
 
 test("cada servico aparece dentro da sua categoria, nao so em algum lugar da pagina", async () => {
@@ -163,5 +173,60 @@ test("as secoes sao dobraveis sem script", async () => {
     assert.doesNotMatch(html, /<script/, "o Mapa nao usa script nenhum");
     // O contador do cabecalho diz quantos estao no ar.
     assert.match(html, /class="conta">\d+ de \d+ no ar</, "cada secao mostra quantos estao no ar");
+  } finally { s.close(); }
+});
+
+test("o recortador de categoria enxerga a secao inteira, nao so ate o primeiro </details>", async () => {
+  const { s, base, entrar } = await servidor();
+  try {
+    const c = await entrar("matheus", "s1");
+    const html = await (await fetch(base + "/mapa", { headers: { cookie: c } })).text();
+    const midia = categoria(html, "Midia");
+    // O grupo Arquivos e o ultimo de Midia: se o recorte parasse cedo, ele
+    // ficaria de fora e o teste de contencao viraria enfeite.
+    assert.match(midia, /Drive/, "o recorte tem que alcancar o fim da secao");
+    assert.match(midia, /<summary>Maquinas/, "e o grupo de maquinas, que vem depois de tudo");
+  } finally { s.close(); }
+});
+
+test("maquina parada so oferece Ligar; no ar, so Desligar e Reiniciar", async () => {
+  const { s, base, entrar } = await servidor();
+  try {
+    const c = await entrar("matheus", "s1");
+    const html = await (await fetch(base + "/mapa", { headers: { cookie: c } })).text();
+
+    // Recorta os campos escondidos de cada formulario que mira uma maquina.
+    const verbosDe = (vmid: number) => {
+      const re = new RegExp(`value="${vmid}">\\s*<input type="hidden" name="verbo" value="(\\w+)"`, "g");
+      return new Set([...html.matchAll(re)].map((m) => m[1]));
+    };
+
+    // O CT 201 esta running no fixture.
+    assert.deepEqual(verbosDe(201), new Set(["shutdown", "reboot"]),
+      "uma maquina no ar nao tem o que ligar");
+    // A VM 120 esta stopped.
+    assert.deepEqual(verbosDe(120), new Set(["start"]),
+      "uma maquina parada nao tem o que desligar nem reiniciar");
+    // A VM 301 nao aparece no fixture do Proxmox: estado desconhecido.
+    assert.deepEqual(verbosDe(301), new Set(["start", "shutdown", "reboot"]),
+      "sem leitura de estado, esconder botao seria pior que oferecer os tres");
+  } finally { s.close(); }
+});
+
+test("cada linha da arvore comeca fechada, mostrando so ponto e nome", async () => {
+  const { s, base, entrar } = await servidor();
+  try {
+    const c = await entrar("matheus", "s1");
+    const html = await (await fetch(base + "/mapa", { headers: { cookie: c } })).text();
+    assert.doesNotMatch(html, /<details class="linha" open>/, "linha nenhuma nasce aberta");
+    assert.match(html, /<details class="grupo" open>/, "os grupos, sim, nascem abertos");
+    const itens = html.match(/<li class="item">[\s\S]*?<\/li>/g) ?? [];
+    const radarr = itens.find((f) => f.includes("Radarr"))!;
+    // A descricao mora no detalhe, nao no cabecalho da linha.
+    const cabeca = radarr.slice(0, radarr.indexOf("</summary>"));
+    // A url continua no href do nome — e o que torna o nome clicavel. O que
+    // nao pode estar no cabecalho e o texto do detalhe.
+    assert.doesNotMatch(cabeca, /procura e organiza/, "a descricao so aparece para quem abriu a linha");
+    assert.doesNotMatch(cabeca, /class="endereco"/, "o endereco tambem mora no detalhe");
   } finally { s.close(); }
 });
