@@ -9,7 +9,6 @@ const MAQUINAS: LinhaMaquina[] = [
   ["vm", 120, "gamebox-batocera", "Emulador na TV", null, 0, "casa", 1],
   ["vm", 301, "floripaot", "Servidor de Tibia e site, producao", "192.168.15.11", 1, "admin", 1],
   ["ct", 100, "drive", "Drive de midias por SMB", null, 0, "admin", 1],
-  ["ct", 101, "Jellyfin", "Jellyfin antigo, privilegiado, a remover", null, 0, "admin", 0],
   ["ct", 102, "Docker", "Containers avulsos", null, 0, "admin", 1],
   ["ct", 103, "portal", "Porteiro da casa: nginx, tunel e este portal", "192.168.15.14", 1, "admin", 0],
   ["ct", 104, "starloco", "Servidor de Dofus Retro", "192.168.15.16", 0, "admin", 1],

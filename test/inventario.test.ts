@@ -91,6 +91,6 @@ test("semear marca exatamente as maquinas acionaveis", () => {
   const porVmid = new Map(listarMaquinas(db, "admin").map((m) => [m.vmid, m]));
   for (const vmid of [100, 102, 104, 120, 201, 301])
     assert.equal(porVmid.get(vmid)?.acionavel, 1, `vmid ${vmid} deveria ser acionavel`);
-  for (const vmid of [103, 110, 111, 101])
+  for (const vmid of [103, 110, 111])
     assert.equal(porVmid.get(vmid)?.acionavel, 0, `vmid ${vmid} NAO pode ser acionavel`);
 });
