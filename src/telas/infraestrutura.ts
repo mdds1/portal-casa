@@ -13,11 +13,17 @@ function gb(bytes: number): string {
 
 // Uma maquina parada nao tem o que desligar, e uma no ar nao tem o que ligar.
 // Oferecer os tres verbos sempre enchia a tela de botoes que nao fazem nada.
-// Quando o estado e desconhecido nao da para escolher, entao oferece tudo:
-// esconder um botao por causa de uma leitura que falhou seria pior.
+//
+// Faltar estado tem duas causas bem diferentes, e a resposta certa e oposta
+// em cada uma. "desconhecido" e a leitura do Proxmox que falhou: as maquinas
+// continuam la, so nao sabemos como estao, entao oferece tudo — esconder um
+// botao por causa de uma leitura que falhou seria pior. "ausente" e a API que
+// respondeu e nao trouxe esta maquina: ela nao existe mais no hipervisor, e
+// todo botao seria uma acao fadada a falhar.
 function verbosDoEstado(estado: string | undefined): readonly Verbo[] {
   if (estado === "running") return VERBOS.filter((v) => v !== "start");
   if (estado === "stopped") return VERBOS.filter((v) => v === "start");
+  if (estado === "ausente") return [];
   return VERBOS;
 }
 
@@ -110,14 +116,15 @@ export function rotaInfraestrutura(deps: DepsTela): RequestHandler {
       // maquina que sumiu da API continua visivel, marcada como desconhecida —
       // some da tela seria a pior forma de avisar que algo esta errado.
       const vivo = pve.dado?.find((x) => x.vmid === m.vmid);
+      const estado = pve.dado ? vivo?.estado ?? "ausente" : "desconhecido";
       return `<tr>
 <td>${escapar(m.tipo.toUpperCase())} ${escapar(m.vmid)}</td>
 <td>${escapar(m.nome)}<br><small>${escapar(m.descricao)}</small></td>
-<td>${escapar(vivo?.estado ?? "desconhecido")}</td>
+<td>${escapar(estado === "ausente" ? "sumiu do Proxmox" : estado)}</td>
 <td>${escapar(m.ip ?? "—")}</td>
 <td>${escapar(vivo ? gb(vivo.memoriaMax) : "—")}</td>
 <td>${m.onboot ? "sim" : "nao"}</td>
-<td><div class="acoes">${botoesDaMaquina(deps.db, papel, m.vmid, m.tipo, csrf, "infra", vivo?.estado)}</div></td>
+<td><div class="acoes">${botoesDaMaquina(deps.db, papel, m.vmid, m.tipo, csrf, "infra", estado)}</div></td>
 </tr>`;
     }).join("");
 

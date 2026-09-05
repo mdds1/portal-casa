@@ -49,13 +49,16 @@ export function rotaMapa(deps: DepsMapa): RequestHandler {
     const pve = await deps.caches.pve.obter();
     const csrf = tokenCsrf(req.sessao!.id, deps.segredoSessao);
 
+    // "desconhecido" e a leitura do Proxmox que falhou; "ausente" e a API que
+    // respondeu sem esta maquina, ou seja, ela nao existe mais.
     const estadoDe = (vmid: number) =>
-      pve.dado?.find((x) => x.vmid === vmid)?.estado ?? "desconhecido";
-    const classePonto = (e: string) => (e === "running" ? "ok" : e === "desconhecido" ? "erro" : "parado");
+      pve.dado ? pve.dado.find((x) => x.vmid === vmid)?.estado ?? "ausente" : "desconhecido";
+    const classePonto = (e: string) =>
+      e === "running" ? "ok" : e === "desconhecido" || e === "ausente" ? "erro" : "parado";
     // O estado cru do Proxmox e ingles e tecnico. Na arvore, quem le quer
     // saber se a coisa esta de pe, nao o vocabulario do hipervisor.
     const emPortugues = (e: string) =>
-      e === "running" ? "no ar" : e === "stopped" ? "parada" : e;
+      e === "running" ? "no ar" : e === "stopped" ? "parada" : e === "ausente" ? "sumiu do Proxmox" : e;
 
     // Cada linha da arvore e um <details> fechado: de fora aparece so o ponto
     // de estado e o nome, que e o que a pessoa procura ao varrer a tela. O

@@ -54,13 +54,17 @@ test("lista as maquinas do inventario com o estado vindo do Proxmox", async () =
   } finally { s.close(); }
 });
 
-test("maquina do inventario que o Proxmox nao devolveu aparece como desconhecida", async () => {
+test("maquina do inventario que o Proxmox nao devolveu continua na lista, marcada", async () => {
   const { base, s, cookie } = await comAdmin();
   try {
     const html = await (await fetch(base + "/infraestrutura", { headers: { cookie } })).text();
-    // o inventario tem 10 maquinas; o cache devolveu 2
+    // O inventario tem 9 maquinas; a leitura foi boa e trouxe 2. As outras
+    // sumiram do hipervisor: continuam visiveis — some da tela seria a pior
+    // forma de avisar — mas sem botao, porque nao ha o que acionar.
     assert.ok(html.includes("gamebox-batocera"), "some do Proxmox mas nao do inventario");
-    assert.ok(/desconhecido/.test(html));
+    const linha = linhaDaMaquina(html, "gamebox-batocera");
+    assert.match(linha, /sumiu do Proxmox/);
+    assert.doesNotMatch(linha, /name="verbo"/, "maquina que nao existe mais nao oferece acao");
   } finally { s.close(); }
 });
 

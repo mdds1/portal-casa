@@ -4,17 +4,20 @@ import { abrirBanco } from "../src/db/conexao.js";
 import { semear } from "../src/db/semente.js";
 import { gerarHash } from "../src/auth/senha.js";
 import { criarApp } from "../src/app.js";
-import { bom } from "../src/fontes/tipos.js";
+import { bom, ruim } from "../src/fontes/tipos.js";
 import type { RecursoPve } from "../src/fontes/proxmox.js";
+import type { Resultado } from "../src/fontes/tipos.js";
 import { cachesDeTeste , chamarHaDeTeste } from "./apoio.js";
 
 const RECURSOS: RecursoPve[] = [
   { tipo: "lxc", vmid: 102, nome: "Docker", estado: "running", cpu: 0, memoria: 0, memoriaMax: 4e9, uptime: 25200 },
   { tipo: "lxc", vmid: 201, nome: "jellyfin", estado: "running", cpu: 0, memoria: 0, memoriaMax: 2e9, uptime: 25200 },
   { tipo: "qemu", vmid: 120, nome: "gamebox-batocera", estado: "stopped", cpu: 0, memoria: 0, memoriaMax: 4e9, uptime: 0 },
+  { tipo: "qemu", vmid: 301, nome: "floripaot", estado: "running", cpu: 0, memoria: 0, memoriaMax: 4e9, uptime: 25200 },
+  // O CT 104 e omitido de proposito: e a maquina que sumiu do hipervisor.
 ];
 
-async function servidor() {
+async function servidor(pve: RecursoPve[] | Resultado<RecursoPve[]> = RECURSOS) {
   const db = abrirBanco(":memory:");
   semear(db);
   const inserir = db.prepare("INSERT INTO usuarios (login,nome,senha,papel) VALUES (?,?,?,?)");
@@ -24,7 +27,7 @@ async function servidor() {
     db, segredoSessao: "teste",
     exec: async () => bom("running"),
     chamarHa: chamarHaDeTeste,
-    caches: cachesDeTeste(RECURSOS),
+    caches: cachesDeTeste(pve),
   });
   const s = app.listen(0);
   const base = `http://127.0.0.1:${(s.address() as { port: number }).port}`;
@@ -138,8 +141,10 @@ test("cada categoria traz os botoes das maquinas que a hospedam, e eles voltam a
     // Jogos e hospedada pelo CT 104, CT 102 e VM 301: tem que haver botao para
     // as acionaveis, DENTRO da secao de Jogos.
     const jogos = categoria(html, "Jogos");
-    assert.match(jogos, /name="alvo" value="104"/, "o starloco e acionavel e hospeda o Dofus");
     assert.match(jogos, /name="alvo" value="301"/, "a VM do FloripaOT hospeda o Tibia");
+    // O CT 104 hospeda o Dofus e e acionavel, mas sumiu do Proxmox: nao ha
+    // acao a oferecer, e a linha nem aparece na lista de maquinas do grupo.
+    assert.doesNotMatch(jogos, /name="alvo" value="104"/, "maquina ausente nao ganha botao");
 
     // Todo formulario do Mapa volta para o Mapa, senao a acao joga a pessoa
     // para outra tela sem explicacao.
@@ -207,9 +212,24 @@ test("maquina parada so oferece Ligar; no ar, so Desligar e Reiniciar", async ()
     // A VM 120 esta stopped.
     assert.deepEqual(verbosDe(120), new Set(["start"]),
       "uma maquina parada nao tem o que desligar nem reiniciar");
-    // A VM 301 nao aparece no fixture do Proxmox: estado desconhecido.
-    assert.deepEqual(verbosDe(301), new Set(["start", "shutdown", "reboot"]),
-      "sem leitura de estado, esconder botao seria pior que oferecer os tres");
+    // O CT 104 nao aparece no fixture: a leitura foi boa e nao trouxe ele,
+    // logo a maquina sumiu do hipervisor e nao ha acao possivel.
+    assert.deepEqual(verbosDe(104), new Set(),
+      "maquina que sumiu do Proxmox nao oferece acao nenhuma");
+  } finally { s.close(); }
+});
+
+test("quando a leitura do Proxmox falha, todos os verbos voltam a ser oferecidos", async () => {
+  // O oposto do teste acima, e a razao de a distincao existir: sem dado
+  // nenhum nao da para saber se a maquina sumiu ou se so nao conseguimos
+  // perguntar. Ai esconder botao seria pior que oferecer os tres.
+  const { s, base, entrar } = await servidor(ruim("Proxmox fora do ar"));
+  try {
+    const c = await entrar("matheus", "s1");
+    const html = await (await fetch(base + "/infraestrutura", { headers: { cookie: c } })).text();
+    const re = new RegExp(`value="301">\\s*<input type="hidden" name="verbo" value="(\\w+)"`, "g");
+    assert.deepEqual(new Set([...html.matchAll(re)].map((m) => m[1])),
+      new Set(["start", "shutdown", "reboot"]));
   } finally { s.close(); }
 });
 

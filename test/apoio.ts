@@ -32,12 +32,16 @@ export const HA_TESTE: EstadoHa[] = [
   { entidade: "media_player.suite_luke_s", estado: "off", rotulo: "Luke's" },
 ];
 
+// O `pve` aceita a lista crua (o caso comum) ou um Resultado inteiro, para
+// quem precisa testar a leitura que falhou — sem dado nenhum, que e diferente
+// de uma leitura boa que simplesmente nao trouxe certa maquina.
 export function cachesDeTeste(
-  pve: RecursoPve[] = [],
+  pve: RecursoPve[] | Resultado<RecursoPve[]> = [],
   ha: Resultado<EstadoHa[]> = bom(HA_TESTE)
 ) {
+  const resultadoPve = Array.isArray(pve) ? bom(pve) : pve;
   return {
-    pve: new Cache(async () => bom(pve)),
+    pve: new Cache(async () => resultadoPve),
     no: new Cache(async () => bom(NO_TESTE)),
     rede: new Cache(async () => bom(REDE_TESTE)),
     tempo: new Cache(async () => bom(TEMPO_TESTE)),

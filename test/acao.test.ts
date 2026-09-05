@@ -19,7 +19,7 @@ function montar(exec: Executor) {
   const app = criarApp({
     chamarHa: chamarHaDeTeste,
     db, segredoSessao: "teste", exec,
-    caches: cachesDeTeste([] as RecursoPve[]),
+    caches: cachesDeTeste(ruim("estado do Proxmox nao importa nestes testes de acao")),
   });
   const s = app.listen(0);
   const base = `http://127.0.0.1:${(s.address() as { port: number }).port}`;
