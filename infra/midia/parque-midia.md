@@ -128,3 +128,35 @@ foram para `/root/arquivo/media-stack/`.
 Para desfazer uma edicao ruim no compose:
 
     pct exec 102 -- sh -c 'cd /opt/media-stack && git checkout -- compose.yaml && docker compose up -d'
+
+## 12/10/2026 — a fila que nao andava
+
+Sonarr com 97 itens e nada baixando. O qBittorrent tinha a fila ligada no padrao
+de **3 downloads ativos**, e as tres vagas estavam com torrents mortos (dois
+HorribleSubs sem seed e um magnet que nunca obteve metadados). Os outros 8 ficavam
+em `queuedDL` para sempre, com tamanho 0.
+
+Correcao: `max_active_downloads` 5, `max_active_torrents` 8 e
+**`dont_count_slow_torrents` ligado**, para torrent parado nao segurar vaga. Copia
+do conf anterior em `/root/arquivo/media-stack/qBittorrent.conf.bak-20261012`.
+
+**Remover download sempre pela fila do Sonarr/Radarr, com bloqueio**, nunca so pelo
+qBittorrent (senao ele rebusca o mesmo release):
+
+    curl -X DELETE -H "X-Api-Key: $S" -H 'Content-Type: application/json' \
+      "localhost:8989/api/v3/queue/bulk?removeFromClient=true&blocklist=true&skipRedownload=true" \
+      -d '{"ids":[...]}'
+
+A senha do qBittorrent esta em texto no `sonarr.db` (`DownloadClients.Settings`);
+o `qBittorrent.conf` so guarda o hash.
+
+**O `media-stack-update` precisa de ~4 GB livres** na raiz do CT 102 (12 GB): ele
+puxa as imagens novas mantendo as antigas como ponto de retorno. Em 12/10 falhou
+com `no space left on device` (sem alterar nada) ate um `docker image prune -a`.
+Depois de conferir que tudo responde, rodar o prune de novo para soltar as antigas.
+
+O Seerr fala com o Jellyfin por `100.85.166.41` (IP Tailscale do CT 201), e isso e
+o certo: o MagicDNS nao resolve de dentro do CT 102, cujo DNS e o roteador.
+Verificado de dentro do container `seerr` em 12/10.
+
+CT 102 voltou a `onboot: 0` (estava `1` desde a manutencao de 19/09).
