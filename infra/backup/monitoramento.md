@@ -29,6 +29,46 @@ e-mail em lugar nenhum.
 
 Copia do wrapper anterior em /root/arquivo/ha-pve-power.antes-do-backup-age.
 
+## 19/09/2026 — o que este verbo NAO cobre
+
+O `backup_age` olha `/mnt/drive/dump/`, ou seja **so o vzdump do Proxmox**. Os
+backups de *aplicacao* — os que vao para o Google Drive por rclone, do FloripaOT
+e do StarLoco — nao passam por aqui e **nao tinham vigia nenhum**.
+
+Custou caro descobrir isso. O `~/bin/backup-starloco.sh` na bancada apontava
+para um IP que a renumeracao da casa deu a outra maquina, e falhou todo dia sem
+que nada avisasse:
+
+    29/08 16:53   ultimo backup bem-sucedido
+    04-07/09      4 execucoes, todas "root@192.168.15.14: Permission denied"
+    08-19/09      nao rodou — a bancada estava desligada
+
+O cron manda a saida para `/dev/null`, entao os 15 dias passaram calados. Quando
+o CT 104 foi destruido por engano em 19/09 (ver
+`infra/host/ct-104-starloco-destruido.md`), o unico backup recente que existia
+era o vzdump do Proxmox — o de aplicacao estava tres semanas atrasado.
+
+### O que foi feito
+
+O `backup-starloco.sh` ganhou duas coisas:
+
+1. **Conferencia de identidade do alvo.** Antes de dumpar, exige que o host
+   responda com `/opt/starloco` presente. Se o IP tiver mudado de dono, ele
+   recusa alto em vez de conversar com a maquina errada. Testado apontando de
+   proposito para o portal: recusou.
+2. **Arquivo de estado** em `~/logs/backup-starloco.estado`, com
+   `<data> <OK|FALHA|EXECUTANDO> <detalhe>`. E a unica coisa que precisa ser
+   lida para saber se o ultimo backup prestou — mesmo padrao de ideia do
+   `backup_age`: dado consultavel, sem cadeia de e-mail.
+
+### O que continua pendente
+
+- O `backup-floripaot.sh` tem o mesmo desenho e provavelmente a mesma cegueira;
+  nao foi revisado em 19/09.
+- Nada ainda **le** o arquivo de estado. Expor por `ha-pve-power` (um verbo
+  irmao do `backup_age`) fecharia o ciclo, mas o arquivo vive na bancada, nao
+  no host — precisa de desenho antes de codigo.
+
 ## Nota sobre a convencao de chamada
 
 Os verbos existentes (`status`, `start`, `shutdown`, `reboot`) recebem

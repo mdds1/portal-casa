@@ -35,7 +35,9 @@ aparelhos da casa.
     /etc/letsencrypt/live/ha.dinizismo.com.br/       certificado
     /etc/letsencrypt/cloudflare.ini                  token da API, modo 600
 
-O nginx repassa para `192.168.15.8:80`, o Home Assistant.
+O nginx repassa para o Home Assistant. **Ate 19/09/2026 era `192.168.15.8:80`;
+com a renumeracao da casa o HA passou a `192.168.15.10`, e o `proxy_pass` foi
+corrigido** — ver `infra/host/renumeracao-20260919.md`.
 
 ## Armadilhas que custaram tempo
 
@@ -74,6 +76,10 @@ pagina carrega e fica eternamente em "Conectando".
 (`yaml_migration_done: true`), o bloco `http:` do configuration.yaml e ignorado.
 O HA confia em `192.168.15.14/32`, o IP de LAN do CT 103. Se ele mudar, o HA
 responde 400 em tudo.
+
+Na renumeracao de 19/09/2026 o CT 103 **manteve** o `.14`, entao isto continua
+valendo — foi conferido, nao suposto. Mas e exatamente o tipo de amarra que a
+proxima troca de roteador quebra calada.
 
 ## Renovacao
 

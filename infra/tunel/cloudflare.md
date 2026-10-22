@@ -44,6 +44,13 @@ Tunel `casa`, id fb72febb-d0f4-4efd-9f74-1e078aec1ea4.
         service: http://192.168.15.8:80
       - service: http_status:404      # sem esta ultima regra o tunel nao sobe
 
+> **Desatualizado.** O Home Assistant saiu do tunel em 30/08/2026 (expunha a
+> tela de login) e hoje sai pelo nginx deste mesmo container; a entrada acima
+> esta comentada no `config.yml`. O ingress vivo tem so o site do FloripaOT,
+> em `192.168.15.11`, que a renumeracao de 19/09/2026 nao mudou. O `.8` que
+> sobrava na linha comentada virou `homeassistant` para nao enganar quem
+> reverter — ver `infra/host/renumeracao-20260919.md`.
+
 Acrescentar servico novo = mais um bloco `hostname` + `cloudflared tunnel route
 dns casa <nome>`. Nao precisa de tunel novo.
 
@@ -85,6 +92,7 @@ enganar quem ler depois — sobrou um comentario apontando para ca.
     0,18 s de resposta
     cloudflared enabled + CT 103 onboot 1  ->  volta sozinho apos queda de luz
     acesso local http://192.168.15.8/ segue funcionando
+    (o HA mudou para 192.168.15.10 em 19/09/2026 -- renumeracao-20260919.md)
 
 ## Pendencias
 

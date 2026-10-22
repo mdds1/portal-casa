@@ -69,6 +69,16 @@ O starloco mudou de `.14` para `.16` porque perdeu o endereco para o portal
 enquanto estava desligado. **Ao religar o CT 104, conferir se a configuracao do
 StarLoco tem o IP antigo gravado.**
 
+> **DESATUALIZADO desde 19/09/2026.** A casa mudou de endereco fisico e a tabela
+> acima e do roteador antigo — vale como historico, nao como referencia. Os MACs
+> continuam valendo; os IPs, nao. O retrato conferido esta em
+> `infra/host/renumeracao-20260919.md`.
+>
+> A advertencia em negrito acima, escrita em 30/08, descreveu por antecipacao o
+> que de fato aconteceu — so que com o roteador inteiro, nao com uma maquina:
+> "**enquanto houver redirecionamento para IP de DHCP, isto se repete**".
+> Repetiu.
+
 O Jellyfin saiu do redirecionamento de proposito: a 8096 e HTTP puro, com senha
 em texto claro. Pela Tailscale ele funciona sem isso. Se o acesso externo virar
 necessario, poe atras do nginx do CT 103 com TLS, como o Home Assistant.
