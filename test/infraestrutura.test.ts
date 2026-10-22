@@ -72,13 +72,15 @@ test("mostra quais maquinas voltam sozinhas depois de queda de luz", async () =>
   const { base, s, cookie } = await comAdmin();
   try {
     const html = await (await fetch(base + "/infraestrutura", { headers: { cookie } })).text();
-    // A semente tem floripaot com onboot=1 e starloco com onboot=0 (src/db/semente.ts).
+    // A semente tem floripaot com onboot=1 e drive com onboot=0 (src/db/semente.ts).
+    // O par era floripaot/starloco ate 19/09/2026, quando o starloco passou a
+    // onboot=1 na renumeracao da casa e deixou de servir de contraexemplo.
     // O cabecalho estatico "<th>Volta sozinha</th>" sozinho ja bateria numa regex
     // solta na pagina inteira -- por isso a checagem e por linha, no valor de fato.
     const linhaFloripaot = linhaDaMaquina(html, "floripaot");
-    const linhaStarloco = linhaDaMaquina(html, "starloco");
+    const linhaDrive = linhaDaMaquina(html, "drive");
     assert.ok(/<td>sim<\/td>/.test(linhaFloripaot), "floripaot volta sozinha (onboot=1)");
-    assert.ok(/<td>nao<\/td>/.test(linhaStarloco), "starloco nao volta sozinha (onboot=0)");
+    assert.ok(/<td>nao<\/td>/.test(linhaDrive), "drive nao volta sozinha (onboot=0)");
   } finally { s.close(); }
 });
 

@@ -87,6 +87,9 @@ Com `policy_in: DROP` ativo, todos responderam:
 - https://192.168.15.200:8006 (LAN) -> 200
 - FloripaOT 7171 e 7172
 - Home Assistant http://192.168.15.8/ -> 200
+  (endereco de 30/08; o HA passou a 192.168.15.10 em 19/09/2026 --
+  ver infra/host/renumeracao-20260919.md. A regra da LAN e por faixa
+  /24, entao a renumeracao nao mexeu no firewall.)
 
 ## O que NAO foi feito
 

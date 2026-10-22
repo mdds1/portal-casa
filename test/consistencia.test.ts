@@ -51,3 +51,40 @@ test("as maquinas nao acionaveis da semente nao aparecem no portal-acao", () => 
 test("os verbos do portal-acao sao exatamente VERBOS", () => {
   assert.deepEqual([...verbosDoScript()].sort(), [...VERBOS].sort());
 });
+
+// Em 19/09/2026 a casa mudou de endereco e a LAN inteira trocou de numero. A
+// semente tinha IP de LAN em 15 dos 18 servicos, e a checagem de todos eles
+// quebrou junto: o painel ficou vermelho sem nada estar fora do ar.
+//
+// O nome de MagicDNS acompanha a maquina; o IP de LAN pertence ao roteador, e o
+// roteador muda. Este teste impede que um IP de LAN volte a entrar na semente
+// por distracao. As duas excecoes sao deliberadas e estao comentadas em
+// src/db/semente.ts -- se uma terceira aparecer, ela tem que ser justificada
+// aqui tambem, e nao so silenciada.
+const HOSTS_POR_IP_PERMITIDOS = new Map([
+  // O starloco (CT 104) nao esta na tailnet: nao ha nome para usar.
+  ["192.168.15.13", "starloco, fora da tailnet"],
+  // O certificado do Proxmox tem `IP Address:192.168.15.200` como unico SAN.
+  ["192.168.15.200", "Proxmox, SAN do certificado e o IP"],
+]);
+
+test("nenhum servico da semente e checado por IP de LAN sem justificativa", () => {
+  const db = abrirBanco(":memory:");
+  semear(db);
+  const linhas = db
+    .prepare("SELECT nome, host_checagem FROM servicos WHERE host_checagem IS NOT NULL")
+    .all() as { nome: string; host_checagem: string }[];
+
+  // Garante que o teste esta mesmo olhando dados; uma semente vazia passaria
+  // calada por um laco sobre lista vazia.
+  assert.ok(linhas.length >= 10, `esperava a semente cheia, vi ${linhas.length} servicos`);
+
+  for (const l of linhas) {
+    if (!/^\d+\.\d+\.\d+\.\d+$/.test(l.host_checagem)) continue;
+    assert.ok(
+      HOSTS_POR_IP_PERMITIDOS.has(l.host_checagem),
+      `"${l.nome}" e checado pelo IP de LAN ${l.host_checagem}. Use o nome de ` +
+        `MagicDNS da maquina, ou registre a excecao em HOSTS_POR_IP_PERMITIDOS.`
+    );
+  }
+});

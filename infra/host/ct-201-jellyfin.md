@@ -108,3 +108,27 @@ e qual dependa de alguem lembrar.
 E ao encontrar dois containers parecidos, um ligado e outro parado: leia o
 `infra/host/` antes de concluir qual e o bom. O estado de hoje pode ser um
 acidente de ontem.
+
+---
+
+## 19/09/2026 — o endereco mudou, o resto continua valendo
+
+O `192.168.15.15` citado acima **nao e mais o Jellyfin**. A casa mudou de
+endereco fisico e o CT 201 passou a `192.168.15.202`, fixo. Hoje o `.15`
+responde um aparelho qualquer da casa, com MAC fora do prefixo `bc:24:11:*` do
+Proxmox — um script que ainda aponte para la acerta uma maquina viva e errada.
+
+As verificacoes por conteudo registradas acima continuam validas; so o endereco
+envelheceu. Retrato conferido em `infra/host/renumeracao-20260919.md`.
+
+O CT 101 (`jellyfin-antigo-nao-ligar`) **foi apagado em 01/09/2026 as 13:08**,
+com um vzdump tirado 43 segundos antes — a mesma disciplina de sempre:
+
+    13:07:49  vzdump:101      OK
+    13:08:32  vzdestroy:101   OK
+
+Foi a decisao do Matheus prevista no fim da secao anterior ("apagar so depois de
+o 201 rodar alguns dias"), e o MAC duplicado deixou de ser risco junto com ele.
+Nao resta nenhum arquivo de backup do 101 em `/mnt/drive/dump`, `/var/lib/vz/dump`
+nem `/mnt/media/dump`. Se um dia o 201 precisar de socorro, as copias
+disponiveis sao as do job diario em `drive:backup/`.

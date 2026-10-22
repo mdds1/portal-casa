@@ -11,9 +11,9 @@ function bancoDeTeste() {
   db.prepare("INSERT INTO maquinas (tipo,vmid,nome,descricao,ip,onboot,papel_minimo) VALUES (?,?,?,?,?,?,?)")
     .run("vm", 301, "floripaot", "Servidor de Tibia", "192.168.15.11", 1, "admin");
   db.prepare("INSERT INTO maquinas (tipo,vmid,nome,descricao,ip,onboot,papel_minimo) VALUES (?,?,?,?,?,?,?)")
-    .run("ct", 201, "jellyfin", "Midia da casa", "192.168.15.15", 0, "casa");
+    .run("ct", 201, "jellyfin", "Midia da casa", "192.168.15.202", 0, "casa");
   db.prepare("INSERT INTO servicos (maquina_vmid,nome,descricao,porta,host_checagem,url,papel_minimo) VALUES (?,?,?,?,?,?,?)")
-    .run(201, "Jellyfin", "Filmes e series", 8096, "192.168.15.15", null, "casa");
+    .run(201, "Jellyfin", "Filmes e series", 8096, "192.168.15.202", null, "casa");
   db.prepare("INSERT INTO servicos (maquina_vmid,nome,descricao,porta,host_checagem,url,papel_minimo) VALUES (?,?,?,?,?,?,?)")
     .run(301, "Jogo FloripaOT", "Porta de login", 7171, "192.168.15.11", null, "admin");
   return db;
@@ -55,7 +55,7 @@ test("papel casa NAO enxerga servico de admin", () => {
 test("maquina tem o campo acionavel, e o padrao e nao-acionavel", () => {
   const db = abrirBanco(":memory:");
   db.prepare("INSERT INTO maquinas (tipo,vmid,nome,descricao,ip,onboot,papel_minimo) VALUES (?,?,?,?,?,?,?)")
-    .run("ct", 201, "jellyfin", "Midia", "192.168.15.15", 0, "casa");
+    .run("ct", 201, "jellyfin", "Midia", "192.168.15.202", 0, "casa");
   const m = listarMaquinas(db, "admin")[0]!;
   assert.equal(m.acionavel, 0, "quem nao foi marcado nao pode ser acionado");
 });
